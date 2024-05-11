@@ -13,105 +13,20 @@
 #include <driver/gpio.h>
 #include <esp32-hal-gpio.h>
 
-// --- Begin: choose operation mode -------------------------------------------------------------------------------------------------------------------------------
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-// You have two ways to choose the operation mode:
-// 1. either use one of the presets
-// 2. or define every low level option manually
-// Recommendation is to start with one of the presets.
-// In both cases, after choosing the operation mode, go further down in this file to set additional settings needed for the chosen mode (unused options should be greyed out).
+#define INTERVALSHORT   1000
+#define INTERVALMEDIUM  2000
+#define INTERVALLONG    10000
 
-#define usePresets
-
-#if defined(usePresets)
-// --- Way 1 to choose the operation mode: choose one of the presets. All further options are automatically set -----------------------------
-/* These are the presets:
-   Fan mode: speed of the fan will be directly set, either via mqtt, via a touch display or both
-   Climate mode: speed of the fan will be controlled by temperature. If actual temperature is higher than target temperature, fan runs at high speed.
-     Of course, actual temperature can never be lower than the air temperature which is transported by the fan from "outside" to "inside".
-     Actual temperature: the actual temperature can be measured by an BME280 or can be provided via mqtt
-     Target temperature: the target temperature will be tried to reach. The target temmperate can be provided via mqtt, via a touch display or both.
-*/
-// --- Begin: list of presets. Choose exactly one. ---
-#define fan_controlledByMQTT
-//#define fan_controlledByTouch
-//#define fan_controlledByMQTTandTouch
-//#define climate_controlledByBME_targetByMQTT
-//#define climate_controlledByBME_targetByTouch
-//#define climate_controlledByBME_targetByMQTTandTouch
-//#define climate_controlledByMQTT_targetByMQTT
-//#define climate_controlledByMQTT_targetByMQTTandTouch
-// --- End: list of presets --------------------------
-
-// --- based on the preset, automatically define other options --------------
-// --- normally you shouldn't change the next lines -------------------------
-#if defined(climate_controlledByBME_targetByMQTT) || defined(climate_controlledByBME_targetByTouch) || defined(climate_controlledByBME_targetByMQTTandTouch) || defined(climate_controlledByMQTT_targetByMQTT) || defined(climate_controlledByMQTT_targetByMQTTandTouch)
-  #define useAutomaticTemperatureControl
-  #if defined(climate_controlledByBME_targetByMQTT) || defined(climate_controlledByBME_targetByTouch) || defined(climate_controlledByBME_targetByMQTTandTouch)
-    #define setActualTemperatureViaBME280
-    #define useTemperatureSensorBME280
-  #endif
-  #if defined(climate_controlledByMQTT_targetByMQTT) || defined(climate_controlledByMQTT_targetByMQTTandTouch)
-    #define setActualTemperatureViaMQTT
-  #endif
-#endif
-#if defined(fan_controlledByMQTT) || defined(fan_controlledByMQTTandTouch) || defined(climate_controlledByBME_targetByMQTT) || defined(climate_controlledByBME_targetByMQTTandTouch) || defined(climate_controlledByMQTT_targetByMQTT) || defined(climate_controlledByMQTT_targetByMQTTandTouch)
-  #define useWIFI
-  #define useMQTT
-#endif
-#if defined(fan_controlledByTouch) || defined(fan_controlledByMQTTandTouch) || defined(climate_controlledByBME_targetByTouch) || defined(climate_controlledByBME_targetByMQTTandTouch) || defined(climate_controlledByMQTT_targetByMQTTandTouch)
-  #define useTFT
-  #define DRIVER_ILI9341       // e.g. 2.8 inch touch panel, 320x240, used in AZ-Touch
-  #define useTouch
-#endif
-
-#else
-// --- Way 2 to choose the operation mode: manually define every low level option -----------------------------------------------------------
-/*
-Mode 1: pwm mode
-directly setting fan speed via pwm signal
--> comment "useAutomaticTemperatureControl"
-
-Mode 2: temperature controller mode
-fan speed automatically increases if temperature is getting close to or higher than target temperature. Of course temperature can never get lower than air temperature of room
--> uncomment "useAutomaticTemperatureControl"
-   -> choose "setActualTemperatureViaBME280"
-      -> uncomment "useTemperatureSensorBME280"
-      XOR "setActualTemperatureViaMQTT"
-
-In both modes you have to have at least one of "useMQTT" and "useTouch", otherwise you cannot control the fan.
-
-Everything else is optional.
-
-First set mode, then go further down in this file to set other options needed for the chosen mode (unused options should be greyed out).
-
-*/
-// --- setting mode -------------------------------------------------------------------------------------------------------------------------
-// #define useAutomaticTemperatureControl
-  #ifdef useAutomaticTemperatureControl
-    // --- choose how to set target temperature. Activate only one. --------------------------------------
-    #define setActualTemperatureViaBME280
-    // #define setActualTemperatureViaMQTT
-  #endif
-// #define useTemperatureSensorBME280
 #define useWIFI
 #define useMQTT
-// #define useTFT
+#define useTFT
   #ifdef useTFT
     // --- choose which display to use. Activate only one. -----------------------------------------------
-    // #define DRIVER_ILI9341       // 2.8 inch touch panel, 320x240, used in AZ-Touch
-    #define DRIVER_ST7735        // 1.8 inch panel,       160x128
+    #define DRIVER_ILI9341       // 2.8 inch touch panel, 320x240, used in AZ-Touch
+    // #define DRIVER_ST7735        // 1.8 inch panel,       160x128
   #endif
-// #define useTouch
+  // #define useTouch
 #endif
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-// --- End: choose operation mode ---------------------------------------------------------------------------------------------------------------------------------
-
-
-
-// --- Begin: additional settings ---------------------------------------------------------------------------------------------------------------------------------
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-// Now, as the basic operation mode is chosen, you can define additional settings
 
 // --- Home Assistant MQTT discovery --------------------------------------------------------------------------------------------------------
 /* If you are using Home Assistant, you can activate auto discovery of the climate/fan and sensors.
@@ -124,84 +39,31 @@ First set mode, then go further down in this file to set other options needed fo
 static_assert(false, "You have to use \"#define useMQTT\" when having \"#define useHomeassistantMQTTDiscovery\"");
 #endif
 
-/* --- If you have a touch display, you can show a standbyButton or shutdownButton
-   There are two kind of shutdown buttons:
-   1. set the fan controller to standby
-        - pwm is set to 0. Note: it is not guaranteed that fan stops if pwm is set to 0
-        - display is turned off
-        - you can get your fan controller back to normal mode via an mqtt message or if you touch the display
-   2. Call an external http REST endpoint, which can trigger any action you want.
-      The display of the fan controller simply shows a counter from 30 to 0 and expects something to happen (e.g. power should be turned off by external means).
-      If nothing happens and counter reaches 0, the fan controller goes back to normal operation mode.
-      For example you could define in Home Assistant an input button. In an automation you could:
-        - shutdown a Raspberry Pi
-        - turn a smart plug off, so that the Raspberry Pi, a 3D printer and the fan controller get powered off
-*/
-
-// #define useShutdownButton
-#ifdef useTouch
-#define useStandbyButton
-#endif
-#if defined(useStandbyButton) && defined(useShutdownButton)
-static_assert(false, "You cannot have both \"#define useStandbyButton\" and \"#define useShutdownButton\"");
-#endif
-
-// --- fan specs ----------------------------------------------------------------------------------------------------------------------------
+// --- fan parameters ----------------------------------------------------------------------------------------------------------------------------
 // fanPWM
-#define PWMPIN               GPIO_NUM_17
+#define PWMPIN               GPIO_NUM_17  // Single pin output to all fans
 #define PWMFREQ              25000
 #define PWMCHANNEL           0
 #define PWMRESOLUTION        8
-#define FANMAXRPM            1500         // only used for showing at how many percent fan is running
+#define FANMAXRPM1           2500         // only used for showing at how many percent fan is running
+#define FANMAXRPM2           2500         // only used for showing at how many percent fan is running
+#define FANMAXRPM3           2500         // only used for showing at how many percent fan is running
 
 // fanTacho
-#define TACHOPIN                             GPIO_NUM_16
-#define TACHOUPDATECYCLE                     1000 // how often tacho speed shall be determined, in milliseconds
-#define NUMBEROFINTERRUPSINONESINGLEROTATION 2    // Number of interrupts ESP32 sees on tacho signal on a single fan rotation. All the fans I've seen trigger two interrups.
+#define TACHOPIN1                             GPIO_NUM_16 // Fan 1
+#define TACHOPIN2                             GPIO_NUM_32 // Fan 2
+#define TACHOPIN3                             GPIO_NUM_33 // Fan 3
+#define TACHOPIN4                             GPIO_NUM_25 // Water Flow Meter
+#define TACHOINPUTS                           4    // Total number of TACHO inputs for iterating
+#define TACHOUPDATECYCLE                      1000 // how often tacho speed shall be determined, in milliseconds
+#define NUMBEROFINTERRUPSINONESINGLEROTATION  2    // Number of interrupts ESP32 sees on tacho signal on a single fan rotation. All the fans I've seen trigger two interrups.
+#define PWMMINIMUMVALUE                       52   // Lowest pwm value the temperature controller should use to set fan minimum speed.
+#define INITIALPWMVALUE                       0    // initial pwm fan speed on startup (0 <= value <= 255)
 
-// --- automatic temperature control --------------------------------------------------------------------------------------------------------
-
-// ifdef:  adaptive fan speed depending on actual temperature and target temperature
-//         target temperature can be set via tft touch or via mqtt
-//         needs "useTemperatureSensorBME280 defined"
-// ifndef: fan speed (pwm) is directly set, no adaptive temperature control
-//         you can set fan speed either via tft touch or via mqtt
-
-#ifdef useAutomaticTemperatureControl
-// initial target temperature on startup
-#define INITIALTARGETTEMPERATURE 27.0
-// Lowest pwm value the temperature controller should use to set fan speed. If you want the fan not to turn off, set a value so that fan always runs.
-#define PWMMINIMUMVALUE            120
-#else
-// delta used when manually increasing or decreasing pwm
-#define PWMSTEP                    10
-#endif
-
-// initial pwm fan speed on startup (0 <= value <= 255)
-#define INITIALPWMVALUE            120
-
-// sanity check
-#if !defined(setActualTemperatureViaBME280) && !defined(setActualTemperatureViaMQTT) && defined(useAutomaticTemperatureControl)
-static_assert(false, "You have to use \"#define setActualTemperatureViaBME280\" or \"#define setActualTemperatureViaMQTT\" when having \"#define useAutomaticTemperatureControl\"");
-#endif
-#if defined(setActualTemperatureViaBME280) && !defined(useTemperatureSensorBME280)
-static_assert(false, "You have to use \"#define useTemperatureSensorBME280\" when having \"#define setActualTemperatureViaBME280\"");
-#endif
-#if defined(setActualTemperatureViaBME280) && defined(setActualTemperatureViaMQTT)
-static_assert(false, "You cannot have both \"#define setActualTemperatureViaBME280\" and \"#define setActualTemperatureViaMQTT\"");
-#endif
-
-// --- temperature sensor BME280 ------------------------------------------------------------------------------------------------------------
-
-#ifdef useTemperatureSensorBME280
-// I2C pins used for BME280
-#define I2C_SCL              GPIO_NUM_32 // GPIO_NUM_22 // GPIO_NUM_17
-#define I2C_SDA              GPIO_NUM_33 // GPIO_NUM_21 // GPIO_NUM_16
-#define I2C_FREQ        100000 // 400000
-#define BME280_ADDR      0x76
-// in order to calibrate BME280 at startup, provide here the height over sea level in meter at your location
-#define HEIGHTOVERSEALEVELATYOURLOCATION 112.0
-#endif
+// Default temperature values on startup
+#define INITIALMAXTEMPERATURE 40.0
+#define INITIALMINTEMPERATURE 36.0
+#define INITIALOFFSETTEMPERATURE 2.0
 
 // --- wifi ---------------------------------------------------------------------------------------------------------------------------------
 
@@ -263,12 +125,20 @@ mosquitto_sub -h localhost -t "homeassistant/fan/esp32_fan_controller/#" -v
 mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 */
 
-#define MQTTCMNDTARGETTEMP        UNIQUE_DEVICE_NAME "/cmnd/TARGETTEMP"
-#define MQTTSTATTARGETTEMP        UNIQUE_DEVICE_NAME "/stat/TARGETTEMP"
 #define MQTTCMNDACTUALTEMP        UNIQUE_DEVICE_NAME "/cmnd/ACTUALTEMP"
 #define MQTTSTATACTUALTEMP        UNIQUE_DEVICE_NAME "/stat/ACTUALTEMP"
-#define MQTTCMNDFANPWM            UNIQUE_DEVICE_NAME "/cmnd/FANPWM"
-#define MQTTSTATFANPWM            UNIQUE_DEVICE_NAME "/stat/FANPWM"
+#define MQTTCMNDMAXTEMP           UNIQUE_DEVICE_NAME "/cmnd/MAXTEMP"
+#define MQTTSTATMAXTEMP           UNIQUE_DEVICE_NAME "/stat/MAXTEMP"
+#define MQTTCMNDMINTEMP           UNIQUE_DEVICE_NAME "/cmnd/MINTEMP"
+#define MQTTSTATMINTEMP           UNIQUE_DEVICE_NAME "/stat/MINTEMP"
+#define MQTTCMNDOFFSETTEMP        UNIQUE_DEVICE_NAME "/cmnd/OFFSETTEMP"
+#define MQTTSTATOFFSETTEMP        UNIQUE_DEVICE_NAME "/stat/OFFSETTEMP"
+#define MQTTCMNDMANUAL            UNIQUE_DEVICE_NAME "/cmnd/MANUAL"
+#define MQTTSTATMANUAL            UNIQUE_DEVICE_NAME "/stat/MANUAL"
+#define MQTTCMNDMANUALPWM         UNIQUE_DEVICE_NAME "/cmnd/MANUALPWM"
+#define MQTTSTATMANUALPWM         UNIQUE_DEVICE_NAME "/stat/MANUALPWM"
+#define MQTTCMNDMINIMUMPWM        UNIQUE_DEVICE_NAME "/cmnd/MINIMUMPWM"
+#define MQTTSTATMINIMUMPWM        UNIQUE_DEVICE_NAME "/stat/MINIMUMPWM"
 // https://www.home-assistant.io/integrations/climate.mqtt/#mode_command_topic
 // https://www.home-assistant.io/integrations/climate.mqtt/#mode_state_topic
 // note: it is not guaranteed that fan stops if pwm is set to 0
@@ -276,14 +146,13 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 #define MQTTSTATFANMODE           UNIQUE_DEVICE_NAME "/stat/MODE"
 #define MQTTFANMODEOFFPAYLOAD     "off"
 #define MQTTFANMODEFANONLYPAYLOAD "fan_only"
+#define MQTTCMNDRESTART           UNIQUE_DEVICE_NAME "/cmnd/RESTART"
 
 #if defined(useOTAUpdate)
 #define MQTTCMNDOTA            UNIQUE_DEVICE_NAME "/cmnd/OTA"
 #endif
 
-#ifdef useTemperatureSensorBME280
 #define MQTTTELESTATE1         UNIQUE_DEVICE_NAME "/tele/STATE1"
-#endif
 #define MQTTTELESTATE2         UNIQUE_DEVICE_NAME "/tele/STATE2"
 #define MQTTTELESTATE3         UNIQUE_DEVICE_NAME "/tele/STATE3"
 #define MQTTTELESTATE4         UNIQUE_DEVICE_NAME "/tele/STATE4"
@@ -305,58 +174,58 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
    discovery, delay(1000), status=online, delay(1000), all inital values
 */
 #define WAITAFTERHAISONLINEUNTILDISCOVERYWILLBESENT   1000
+
+// see https://www.home-assistant.io/integrations/climate.mqtt/#availability_topic
 #define HASSFANSTATUSTOPIC                    UNIQUE_DEVICE_NAME "/stat/STATUS" // can be "online" and "offline"
 
 // The define HOMEASSISTANTDEVICE will be reused in all discovery payloads for the climate/fan and the sensors. Everything should be contained in the same device.
-#define HOMEASSISTANTDEVICE                   "\"dev\":{\"name\":\"" UNIQUE_DEVICE_FRIENDLYNAME "\", \"model\":\"" UNIQUE_DEVICE_NAME "\", \"identifiers\":[\"" UNIQUE_DEVICE_NAME "\"], \"manufacturer\":\"KlausMu\"}"
-
+#define HOMEASSISTANTDEVICE                        "\"dev\":{\"name\":\"" UNIQUE_DEVICE_FRIENDLYNAME "\", \"model\":\"" UNIQUE_DEVICE_NAME "\", \"identifiers\":[\"" UNIQUE_DEVICE_NAME "\"], \"manufacturer\":\"Chin Pin Hon\"}"
+#define HASSTEMPCLASS                              "\"unit_of_measurement\":\"°C\",\"device_class\":\"temperature\""
+#define HASSSENSORCLASS                            " }}\",\"state_class\":\"measurement\",\"expire_after\":\"30\""
+#define HASSICON                                   "\",\"~\":\"" UNIQUE_DEVICE_NAME "\",\"icon\":\""
+#define HASSOBJECT                                 "\",\"object_id\":\"" UNIQUE_DEVICE_NAME
+#define HASSSTATE1                                 "\",\"state_topic\":\"~/tele/STATE1\",\"value_template\":\"{{ "
+#define HASSSTATE2                                 "\",\"state_topic\":\"~/tele/STATE2\",\"value_template\":\"{{ "
+#define HASSUNIQUEID                               "\",\"unique_id\":\"" UNIQUE_DEVICE_NAME
+#define HASSSTAT                                   "\",\"state_topic\":\"~/stat/"
+#define HASSNAME                                   "{\"name\":\""
+#define HASSCMND                                   "\",\"command_topic\":\"~/cmnd/"
 // climate
 // see https://www.home-assistant.io/integrations/climate.mqtt/
-#ifdef useAutomaticTemperatureControl
-#define HASSCLIMATEDISCOVERYTOPIC             "homeassistant/climate/" UNIQUE_DEVICE_NAME "/config"
-#ifdef useTemperatureSensorBME280
-#define CURRENTHUMIDITYINCLIMATE              "\"current_humidity_topic\":\"~/tele/STATE1\", \"current_humidity_template\":\"{{value_json.hum | round(0)}}\", "
-#else
-#define CURRENTHUMIDITYINCLIMATE
-#endif
-#define HASSCLIMATEDISCOVERYPAYLOAD           "{\"name\":null,            \"unique_id\":\"" UNIQUE_DEVICE_NAME "\",             \"object_id\":\"" UNIQUE_DEVICE_NAME "\",             \"~\":\"" UNIQUE_DEVICE_NAME "\", \"icon\":\"mdi:fan\", \"min_temp\":10, \"max_temp\":50, \"temp_step\":1, \"precision\":0.1, " CURRENTHUMIDITYINCLIMATE "\"current_temperature_topic\":\"~/stat/ACTUALTEMP\", \"temperature_command_topic\":\"~/cmnd/TARGETTEMP\", \"temperature_state_topic\":\"~/stat/TARGETTEMP\", \"modes\":[\"off\",\"fan_only\"], \"mode_command_topic\":\"~/cmnd/MODE\", \"mode_state_topic\":\"~/stat/MODE\", \"availability_topic\":\"~/stat/STATUS\", " HOMEASSISTANTDEVICE "}"
-#endif
-
-// fan
-// see https://www.home-assistant.io/integrations/fan.mqtt/
-#ifndef useAutomaticTemperatureControl
-#define HASSFANDISCOVERYTOPIC                 "homeassistant/fan/" UNIQUE_DEVICE_NAME "/config"
-#define HASSFANDISCOVERYPAYLOAD               "{\"name\":null,            \"unique_id\":\"" UNIQUE_DEVICE_NAME "\",             \"object_id\":\"" UNIQUE_DEVICE_NAME "\",             \"~\":\"" UNIQUE_DEVICE_NAME "\", \"icon\":\"mdi:fan\", \"command_topic\":\"~/cmnd/MODE\", \"state_topic\":\"~/stat/MODE\", \"payload_on\": \"fan_only\", \"payload_off\": \"off\", \"percentage_state_topic\": \"~/stat/FANPWM\", \"percentage_command_topic\": \"~/cmnd/FANPWM\", \"speed_range_min\": 1, \"speed_range_max\": 255,\"availability_topic\":\"~/stat/STATUS\", " HOMEASSISTANTDEVICE "}"
-#endif
+#define HASSCLIMATEDISCOVERYTOPIC                  "homeassistant/climate/" UNIQUE_DEVICE_NAME "/config"
+#define HASSCLIMATEDISCOVERYPAYLOAD                "{\"name\":null,\"unique_id\":\"" UNIQUE_DEVICE_NAME "_temperaturehot" HASSOBJECT "" HASSICON "mdi:fan\",\"min_temp\":10,\"max_temp\":50,\"temp_step\":0.1,\"precision\":0.1,\"temperature_high_command_topic\":\"~/cmnd/MAXTEMP\",\"temperature_high_state_topic\":\"~/stat/MAXTEMP\",\"temperature_high_state_template\":\"{{ round(2) }}\",\"temperature_low_command_topic\":\"~/cmnd/MINTEMP\",\"temperature_low_state_topic\":\"~/stat/MINTEMP\",\"temperature_low_state_template\":\"{{ round(2) }}\",\"current_temperature_topic\":\"~/tele/STATE1\",\"value_template\":\"{{ value_json.TempHot }}\",\"modes\":[\"off\",\"fan_only\"],\"mode_command_topic\":\"~/cmnd/MODE\",\"mode_state_topic\":\"~/stat/MODE\",\"availability_topic\":\"~/stat/STATUS\"," HOMEASSISTANTDEVICE "}"
 
 // sensors
 // see https://www.home-assistant.io/integrations/sensor.mqtt/
-#ifdef useTemperatureSensorBME280
-#define HASSHUMIDITYSENSORDISCOVERYTOPIC      "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/humidity/config"
-#define HASSHUMIDITYSENSORDISCOVERYPAYLOAD    "{\"name\":\"Humidity\",    \"unique_id\":\"" UNIQUE_DEVICE_NAME "_humidity\",    \"object_id\":\"" UNIQUE_DEVICE_NAME "_humidity\",    \"~\":\"" UNIQUE_DEVICE_NAME "\", \"state_topic\":\"~/tele/STATE1\", \"value_template\":\"{{ value_json.hum     | round(0) }}\", \"device_class\":\"humidity\",             \"unit_of_measurement\":\"%\",   \"state_class\":\"measurement\", \"expire_after\": \"30\",                                                                                                                                                                                                                                                                                             " HOMEASSISTANTDEVICE "}"
-#define HASSTEMPERATURESENSORDISCOVERYTOPIC   "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/temperature/config"
-#define HASSTEMPERATURESENSORDISCOVERYPAYLOAD "{\"name\":\"Temperature\", \"unique_id\":\"" UNIQUE_DEVICE_NAME "_temperature\", \"object_id\":\"" UNIQUE_DEVICE_NAME "_temperature\", \"~\":\"" UNIQUE_DEVICE_NAME "\", \"state_topic\":\"~/tele/STATE1\", \"value_template\":\"{{ value_json.ActTemp | round(1) }}\", \"device_class\":\"temperature\",          \"unit_of_measurement\":\"°C\",  \"state_class\":\"measurement\", \"expire_after\": \"30\",                                                                                                                                                                                                                                                                                             " HOMEASSISTANTDEVICE "}"
-#define HASSPRESSURESENSORDISCOVERYTOPIC      "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/pressure/config"
-#define HASSPRESSURESENSORDISCOVERYPAYLOAD    "{\"name\":\"Pressure\",    \"unique_id\":\"" UNIQUE_DEVICE_NAME "_pressure\",    \"object_id\":\"" UNIQUE_DEVICE_NAME "_pressure\",    \"~\":\"" UNIQUE_DEVICE_NAME "\", \"state_topic\":\"~/tele/STATE1\", \"value_template\":\"{{ value_json.pres    | round(0) }}\", \"device_class\":\"atmospheric_pressure\", \"unit_of_measurement\":\"hPa\", \"state_class\":\"measurement\", \"expire_after\": \"30\",                                                                                                                                                                                                                                                                                             " HOMEASSISTANTDEVICE "}"
-#define HASSALTITUDESENSORDISCOVERYTOPIC      "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/altitude/config"
-#define HASSALTITUDESENSORDISCOVERYPAYLOAD    "{\"name\":\"Altitude\",    \"unique_id\":\"" UNIQUE_DEVICE_NAME "_altitude\",    \"object_id\":\"" UNIQUE_DEVICE_NAME "_altitude\",    \"~\":\"" UNIQUE_DEVICE_NAME "\", \"state_topic\":\"~/tele/STATE1\", \"value_template\":\"{{ value_json.alt     | round(1) }}\", \"device_class\":\"distance\",             \"unit_of_measurement\":\"m\",   \"state_class\":\"measurement\", \"expire_after\": \"30\",                                                                                                                                                                                                                                                                                             " HOMEASSISTANTDEVICE "}"
-#endif
-#define HASSPWMSENSORDISCOVERYTOPIC           "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/pwm/config"
-#define HASSPWMSENSORDISCOVERYPAYLOAD         "{\"name\":\"PWM\",         \"unique_id\":\"" UNIQUE_DEVICE_NAME "_PWM\",         \"object_id\":\"" UNIQUE_DEVICE_NAME "_PWM\",         \"~\":\"" UNIQUE_DEVICE_NAME "\", \"state_topic\":\"~/tele/STATE2\", \"value_template\":\"{{ value_json.pwm }}\",                                                                                            \"state_class\":\"measurement\", \"expire_after\": \"30\",                                                                                                                                                                                                                                                                                             " HOMEASSISTANTDEVICE "}"
-#define HASSRPMSENSORDISCOVERYTOPIC           "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/rpm/config"
-#define HASSRPMSENSORDISCOVERYPAYLOAD         "{\"name\":\"RPM\",         \"unique_id\":\"" UNIQUE_DEVICE_NAME "_RPM\",         \"object_id\":\"" UNIQUE_DEVICE_NAME "_RPM\",         \"~\":\"" UNIQUE_DEVICE_NAME "\", \"state_topic\":\"~/tele/STATE2\", \"value_template\":\"{{ value_json.rpm }}\",                                                                                            \"state_class\":\"measurement\", \"expire_after\": \"30\",                                                                                                                                                                                                                                                                                             " HOMEASSISTANTDEVICE "}"
+#define HASSSENSORTEMPERATUREHOTDISCOVERYTOPIC     "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/temphot/config"
+#define HASSSENSORTEMPERATURECOLDDISCOVERYTOPIC    "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/tempcold/config"
+#define HASSSENSORPWMDISCOVERYTOPIC                "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/pwm/config"
+#define HASSSENSORRPM1DISCOVERYTOPIC               "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/rpm1/config"
+#define HASSSENSORRPM2DISCOVERYTOPIC               "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/rpm2/config"
+#define HASSSENSORRPM3DISCOVERYTOPIC               "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/rpm3/config"
+#define HASSSENSORRPM4DISCOVERYTOPIC               "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/rpm4/config"
+#define HASSSENSORTEMPERATUREHOTDISCOVERYPAYLOAD   HASSNAME "Hot side" HASSUNIQUEID "_temperaturehot" HASSOBJECT "_temperaturehot" HASSICON "mdi:coolant-temperature" HASSSTATE1 "value_json.TempHot | round(1)" HASSSENSORCLASS "," HOMEASSISTANTDEVICE "," HASSTEMPCLASS "}"
+#define HASSSENSORTEMPERATURECOLDDISCOVERYPAYLOAD  HASSNAME "Cold side" HASSUNIQUEID "_temperaturecold" HASSOBJECT "_temperaturecold" HASSICON "mdi:coolant-temperature" HASSSTATE1 "value_json.TempCold | round(1)" HASSSENSORCLASS "," HOMEASSISTANTDEVICE "," HASSTEMPCLASS "}"
+#define HASSSENSORPWMDISCOVERYPAYLOAD              HASSNAME "PWM" HASSUNIQUEID "_PWM" HASSOBJECT "_PWM" HASSICON "mdi:wind-power" HASSSTATE2 "value_json.pwm" HASSSENSORCLASS "," HOMEASSISTANTDEVICE "}"
+#define HASSSENSORRPM1DISCOVERYPAYLOAD             HASSNAME "Fan1 RPM" HASSUNIQUEID "_RPM1" HASSOBJECT "_RPM1" HASSICON "mdi:fan" HASSSTATE2 "value_json.rpm0" HASSSENSORCLASS "," HOMEASSISTANTDEVICE "}"
+#define HASSSENSORRPM2DISCOVERYPAYLOAD             HASSNAME "Fan2 RPM" HASSUNIQUEID "_RPM2" HASSOBJECT "_RPM2" HASSICON "mdi:fan" HASSSTATE2 "value_json.rpm1" HASSSENSORCLASS "," HOMEASSISTANTDEVICE "}"
+#define HASSSENSORRPM3DISCOVERYPAYLOAD             HASSNAME "Fan3 RPM" HASSUNIQUEID "_RPM3" HASSOBJECT "_RPM3" HASSICON "mdi:fan" HASSSTATE2 "value_json.rpm2" HASSSENSORCLASS "," HOMEASSISTANTDEVICE "}"
+#define HASSSENSORRPM4DISCOVERYPAYLOAD             HASSNAME "Water Flow" HASSUNIQUEID "_RPM4" HASSOBJECT "_RPM4" HASSICON "mdi:waves-arrow-right" HASSSTATE2 "value_json.rpm3 / 100" HASSSENSORCLASS "," HOMEASSISTANTDEVICE ",\"step\":0.1,\"min\":0.1,\"max\":20,\"unit_of_measurement\":\"L/min\",\"device_class\":\"volume_flow_rate\"}"
 
-// see https://www.home-assistant.io/integrations/climate.mqtt/#availability_topic
-#endif
+// numbers
+// see https://www.home-assistant.io/integrations/number.mqtt/
+#define HASSNUMBEROFFSETDISCOVERYTOPIC             "homeassistant/number/" UNIQUE_DEVICE_NAME "/offset/config"
+#define HASSNUMBERMANUALPWMDISCOVERYTOPIC          "homeassistant/number/" UNIQUE_DEVICE_NAME "/manualpwm/config"
+#define HASSNUMBERMINIMUMPWMDISCOVERYTOPIC         "homeassistant/number/" UNIQUE_DEVICE_NAME "/minimumpwm/config"
+#define HASSNUMBEROFFSETDISCOVERYPAYLOAD           HASSNAME "Offset" HASSUNIQUEID "_offset" HASSOBJECT "_offset" HASSICON "mdi:thermometer-alert" HASSSTAT "OFFSETTEMP" HASSCMND "OFFSETTEMP" "\"," HOMEASSISTANTDEVICE ",\"step\":0.1,\"min\":-10,\"max\":10,\"precision\":0.1,\"mode\":\"box\"," HASSTEMPCLASS "}"
+#define HASSNUMBERMANUALPWMDISCOVERYPAYLOAD        HASSNAME "Manual PWM" HASSUNIQUEID "_manualpwm" HASSOBJECT "_manualpwm" HASSICON "mdi:wind-power" HASSSTAT "MANUALPWM" HASSCMND "MANUALPWM" "\"," HOMEASSISTANTDEVICE ",\"step\":1,\"min\":0,\"max\":255,\"mode\":\"slider\"}"
+#define HASSNUMBERMINIMUMPWMDISCOVERYPAYLOAD       HASSNAME "Minimum PWM" HASSUNIQUEID "_minimumpwm" HASSOBJECT "_minimumpwm" HASSICON "mdi:wind-power" HASSSTAT "MINIMUMPWM" HASSCMND "MINIMUMPWM" "\"," HOMEASSISTANTDEVICE ",\"step\":1,\"min\":0,\"max\":255,\"mode\":\"box\"}"
 
-#endif
+// switch
+// see https://www.home-assistant.io/integrations/switch.mqtt/
+#define HASSSWITCHMANUALDISCOVERYTOPIC             "homeassistant/switch/" UNIQUE_DEVICE_NAME "/manual/config"
+#define HASSSWITCHMANUALDISCOVERYPAYLOAD           HASSNAME "Manual mode" HASSUNIQUEID "_manual" HASSOBJECT "_manual" HASSICON "mdi:toggle-switch" HASSSTAT "MANUAL" HASSCMND "MANUAL" "\"," HOMEASSISTANTDEVICE ",\"payload_on\":\"ON\",\"payload_off\":\"OFF\"}"
 
-// sanity check
-#if defined(useMQTT) && !defined(useWIFI)
-static_assert(false, "You have to use \"#define useWIFI\" when having \"#define useMQTT\"");
-#endif
-#if defined(setActualTemperatureViaMQTT) && !defined(useMQTT)
-static_assert(false, "You have to use \"#define useMQTT\" when having \"#define setActualTemperatureViaMQTT\"");
 #endif
 
 // --- tft ----------------------------------------------------------------------------------------------------------------------------------
@@ -367,7 +236,7 @@ static_assert(false, "You have to use \"#define useMQTT\" when having \"#define 
 #define TFT_RST               GPIO_NUM_22   //display reset
 #define TFT_MOSI              GPIO_NUM_23   //diplay MOSI
 #define TFT_CLK               GPIO_NUM_18   //display clock
-
+#define LED_ON                HIGH          // override it in file "config_override.h"
 
 #ifdef DRIVER_ILI9341
 #define TFT_LED               GPIO_NUM_15   //display background LED
@@ -377,124 +246,11 @@ static_assert(false, "You have to use \"#define useMQTT\" when having \"#define 
 #ifdef DRIVER_ST7735
 #define TFT_ROTATION          1 // use 1 (landscape) or 3 (landscape upside down), nothing else. 0 and 2 (portrait) will not give a nice result.
 #endif
-
 #endif
-
-// --- touch --------------------------------------------------------------------------------------------------------------------------------
-
-// Only AZ-Touch: here you have to set the pin for TOUCH_IRQ. The older "ArduiTouch" and the newer "AZ-Touch" use different pins. And you have to set the LED-PIN to different values to light up the TFT.
-// 1. "ArduiTouch" 2.4 inch (older version)
-// https://www.az-delivery.de/en/products/az-touch-wandgehauseset-mit-touchscreen-fur-esp8266-und-esp32
-#ifdef useTFT
-// #define LED_ON           LOW          // override it in file "config_override.h"
-#endif
-#ifdef useTouch
-// #define TOUCH_CS         GPIO_NUM_14  // override it in file "config_override.h"
-// #define TOUCH_IRQ        GPIO_NUM_2   // override it in file "config_override.h"
-#endif
-// 2. "AZ-Touch" 2.8 inch, since November 2020
-// https://www.az-delivery.de/en/products/az-touch-wandgehauseset-mit-2-8-zoll-touchscreen-fur-esp8266-und-esp32
-// https://www.az-delivery.de/en/blogs/azdelivery-blog-fur-arduino-und-raspberry-pi/az-touch-mod
-#ifdef useTFT
-#define LED_ON           HIGH          // override it in file "config_override.h"
-#endif
-#ifdef useTouch
-#define TOUCH_CS         GPIO_NUM_14   // override it in file "config_override.h"
-#define TOUCH_IRQ        GPIO_NUM_27   // override it in file "config_override.h"
-#endif
-
-// sanity check
-#if defined(useTouch) && !defined(useTFT)
-static_assert(false, "You have to use \"#define useTFT\" when having \"#define useTouch\"");
-#endif
-#if defined(DRIVER_ST7735) && defined(useTouch)
-static_assert(false, "TFT ST7735 doesn't support touch. Please disable it.");
-#endif
-#if !defined(useTouch) && !defined(useMQTT)
-static_assert(false, "You cannot disable both MQTT and touch, otherwise you cannot control the fan");
-#endif
-
-// --- shutdown Raspberry Pi and power off --------------------------------------------------------------------------------------------------
-/* Shutdown Raspberry Pi and turn off wifi power socket.
-   In my setting I have a Raspberry Pi running Octoprint, a 3D printer, and both is powered by a wifi power socket.
-   I wanted to shutdown the Pi and turn off power by means of the ESP32.
-   This is very special to my setting. You can completely disable it.
-   If this option is enabled, then a power off button is shown on the TFT screen.
-   When you hit the button, a http request is send to OpenHab which starts a script (script has to be defined in OpenHab) with the following actions:
-   - shutdown Raspberry Pi
-   - wait 30 seconds
-   - turn off wifi power socket (switch off 3D printer and Raspberry Pi)
-   Since the OpenHab script (in my case) waits 30 seconds before turning off power, there is a simple countdown with same duration on the TFT display.
-   The ESP32 does not need to turn off exactly when 0 is shown on the display. This depends on when the OpenHab script turns off the wifi power socket.
-   ESP32 can actually power off when countdown is e.g. at 5 or even less than 0 ...
-*/
-
-#ifdef useShutdownButton
-#define MQTTCMNDSHUTDOWNTOPIC          UNIQUE_DEVICE_NAME "/cmnd/shutdown" // override it in file "config_override.h"
-#define MQTTCMNDSHUTDOWNPAYLOAD        "shutdown"                          // override it in file "config_override.h"
-#define SHUTDOWNCOUNTDOWN              30  // in seconds
-#endif
-
-// sanity check
-#if defined(useShutdownButton) && !defined(useMQTT)
-static_assert(false, "You have to use \"#define useMQTT\" when having \"#define useShutdownButton\"");
-#endif
-#if (defined(useStandbyButton) || defined(useShutdownButton)) && !defined(useTouch)
-static_assert(false, "You have to use \"#define useTouch\" when having \"#define useStandbyButton\" or \"#define useShutdownButton\"");
-#endif
-
-// --- not used -----------------------------------------------------------------------------------------------------------------------------
-#ifdef DRIVER_ILI9341
-// Occupied by AZ-touch. This software doesn't use this pin
-#define BUZZER                GPIO_NUM_21
-// #define A0                   GPIO_NUM_36
-#endif
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------------------------
-// --- End: additional settings -----------------------------------------------------------------------------------------------------------------------------------
-
 
 // --- include override settings from seperate file ---------------------------------------------------------------------------------------------------------------
 #if __has_include("config_override.h")
   #include "config_override.h"
-#endif
-
-// --- sanity check: only one preset must be choosen --------------------------------------------------------------------------------------------------------------
-#if (defined(fan_controlledByMQTT)                         && defined(fan_controlledByTouch))                         || \
-    (defined(fan_controlledByMQTT)                         && defined(fan_controlledByMQTTandTouch))                  || \
-    (defined(fan_controlledByMQTT)                         && defined(climate_controlledByBME_targetByMQTT))          || \
-    (defined(fan_controlledByMQTT)                         && defined(climate_controlledByBME_targetByTouch))         || \
-    (defined(fan_controlledByMQTT)                         && defined(climate_controlledByBME_targetByMQTTandTouch))  || \
-    (defined(fan_controlledByMQTT)                         && defined(climate_controlledByMQTT_targetByMQTT))         || \
-    (defined(fan_controlledByMQTT)                         && defined(climate_controlledByMQTT_targetByMQTTandTouch)) || \
-                                                                                                                         \
-    (defined(fan_controlledByTouch)                        && defined(fan_controlledByMQTTandTouch))                  || \
-    (defined(fan_controlledByTouch)                        && defined(climate_controlledByBME_targetByMQTT))          || \
-    (defined(fan_controlledByTouch)                        && defined(climate_controlledByBME_targetByTouch))         || \
-    (defined(fan_controlledByTouch)                        && defined(climate_controlledByBME_targetByMQTTandTouch))  || \
-    (defined(fan_controlledByTouch)                        && defined(climate_controlledByMQTT_targetByMQTT))         || \
-    (defined(fan_controlledByTouch)                        && defined(climate_controlledByMQTT_targetByMQTTandTouch)) || \
-                                                                                                                         \
-    (defined(fan_controlledByMQTTandTouch)                 && defined(climate_controlledByBME_targetByMQTT))          || \
-    (defined(fan_controlledByMQTTandTouch)                 && defined(climate_controlledByBME_targetByTouch))         || \
-    (defined(fan_controlledByMQTTandTouch)                 && defined(climate_controlledByBME_targetByMQTTandTouch))  || \
-    (defined(fan_controlledByMQTTandTouch)                 && defined(climate_controlledByMQTT_targetByMQTT))         || \
-    (defined(fan_controlledByMQTTandTouch)                 && defined(climate_controlledByMQTT_targetByMQTTandTouch)) || \
-                                                                                                                         \
-    (defined(climate_controlledByBME_targetByMQTT)         && defined(climate_controlledByBME_targetByTouch))         || \
-    (defined(climate_controlledByBME_targetByMQTT)         && defined(climate_controlledByBME_targetByMQTTandTouch))  || \
-    (defined(climate_controlledByBME_targetByMQTT)         && defined(climate_controlledByMQTT_targetByMQTT))         || \
-    (defined(climate_controlledByBME_targetByMQTT)         && defined(climate_controlledByMQTT_targetByMQTTandTouch)) || \
-                                                                                                                         \
-    (defined(climate_controlledByBME_targetByTouch)        && defined(climate_controlledByBME_targetByMQTTandTouch))  || \
-    (defined(climate_controlledByBME_targetByTouch)        && defined(climate_controlledByMQTT_targetByMQTT))         || \
-    (defined(climate_controlledByBME_targetByTouch)        && defined(climate_controlledByMQTT_targetByMQTTandTouch)) || \
-                                                                                                                         \
-    (defined(climate_controlledByBME_targetByMQTTandTouch) && defined(climate_controlledByMQTT_targetByMQTT))         || \
-    (defined(climate_controlledByBME_targetByMQTTandTouch) && defined(climate_controlledByMQTT_targetByMQTTandTouch)) || \
-                                                                                                                         \
-    (defined(climate_controlledByMQTT_targetByMQTT)        && defined(climate_controlledByMQTT_targetByMQTTandTouch))
-static_assert(false, "You cannot choose more than one preset at the same time");
 #endif
 
 #endif /*__CONFIG_H__*/
