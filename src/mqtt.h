@@ -1,11 +1,17 @@
 #ifdef useMQTT
 void mqtt_setup(void);
 void mqtt_loop(void);
-bool mqtt_publish_tele(void);
-bool mqtt_publish_stat_targetTemp();
-bool mqtt_publish_stat_actualTemp();
-bool mqtt_publish_stat_fanPWM();
+bool mqtt_publish_tele1(void);
+bool mqtt_publish_tele2(void);
+bool mqtt_publish_tele3(void);
+bool mqtt_publish_tele4(void);
+bool mqtt_publish_stat_maxTemp();
+bool mqtt_publish_stat_minTemp();
+bool mqtt_publish_stat_offsetTemp();
 bool mqtt_publish_stat_mode();
+bool mqtt_publish_stat_manual();
+bool mqtt_publish_stat_manualPWM();
+bool mqtt_publish_stat_minimumPWM();
 #ifdef useShutdownButton
 bool mqtt_publish_shutdown();
 #endif

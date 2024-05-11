@@ -2,13 +2,16 @@
 #include "fanPWM.h"
 #include "fanTacho.h"
 #include "log.h"
-#include "sensorBME280.h"
+#include "sensorNTC.h"
 #include "temperatureController.h"
 #include "tft.h"
+#include "WiFi.h"
 
 #ifdef DRIVER_ILI9341
 #include <Adafruit_ILI9341.h>
-#include <Fonts/FreeSans9pt7b.h>
+#include <FreeSans9pt7b.h>
+#include <Fonts/FreeMono9pt7b.h>
+#include <Fonts/FreeSansBold9pt7b.h>
 #endif
 #ifdef DRIVER_ST7735
 #include <Adafruit_ST7735.h>
@@ -26,10 +29,13 @@ Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 #ifdef useTFT
 const GFXfont *myFont;
+const GFXfont *myFontM;
+const GFXfont *myFontB;
 int textSizeOffset;
 
 // number of screen to display
 int screen = SCREEN_NORMALMODE;
+int lastRSSI;
 
 unsigned long startCountdown = 0;
 
@@ -46,7 +52,10 @@ void initTFT(void) {
   digitalWrite(TFT_LED, LED_ON);
   tft.begin();
   myFont = &FreeSans9pt7b;
+  myFontM = &FreeMono9pt7b;
+  myFontB = &FreeSansBold9pt7b;
   textSizeOffset = 0;
+  lastRSSI = 9;
   #endif
   #ifdef DRIVER_ST7735
   tft.initR(INITR_BLACKTAB);
@@ -135,11 +144,10 @@ void calcDimensionsOfElements(void) {
   tempAreaLeft     = getRelativeX(marginLeftAbsolute);
   fanAreaLeft      = getRelativeX(marginLeftAbsolute);
   ambientAreaLeft = getRelativeX(marginLeftAbsolute);
-  #ifdef useAutomaticTemperatureControl
-  tempAreaTop     = getRelativeY(marginTopAbsolute);
-  fanAreaTop      = getRelativeY(marginTopAbsolute+areaHeightAbsolute+marginTopAbsolute);
+  tempAreaTop     = getRelativeY(marginTopAbsolute) + 15;
+  fanAreaTop      = getRelativeY(marginTopAbsolute+areaHeightAbsolute+marginTopAbsolute) + 20;
   valueUpRectTop   = fanAreaTop;
-  ambientAreaTop = getRelativeY(marginTopAbsolute+areaHeightAbsolute+marginTopAbsolute+areaHeightAbsolute+marginTopAbsolute );
+  ambientAreaTop = getRelativeY(marginTopAbsolute+areaHeightAbsolute+marginTopAbsolute+areaHeightAbsolute+marginTopAbsolute ) + 30;
   valueDownRectTop = ambientAreaTop;
     #if defined (useStandbyButton) || defined(useShutdownButton)
     tempAreaWidth     = getRelativeX(320-marginLeftAbsolute - shutdownWidthAbsolute-marginLeftAbsolute);    // screen - marginleft - [Area] - 40 shutdown - marginright
@@ -156,11 +164,7 @@ void calcDimensionsOfElements(void) {
     #if defined (useStandbyButton) || defined(useShutdownButton)
     shutdownRectTop   = getRelativeY(marginTopAbsolute);
     #endif
-  #else
-  fanAreaTop      = getRelativeY(marginTopAbsolute);
-  valueUpRectTop    = fanAreaTop;
-  ambientAreaTop = getRelativeY(marginTopAbsolute+areaHeightAbsolute+marginTopAbsolute);
-  valueDownRectTop  = ambientAreaTop;
+  
     #ifdef useTouch
     fanAreaWidth      = getRelativeX(320-marginLeftAbsolute - valueUpDownWidthAbsolute-marginLeftAbsolute); // screen - marginleft - [Area] - 80 up/down  - marginright
     ambientAreaWidth = getRelativeX(320-marginLeftAbsolute - valueUpDownWidthAbsolute-marginLeftAbsolute);
@@ -235,7 +239,7 @@ https://www.heise.de/select/make/2023/2/2304608284785808657
   8           0/64      -96/136       -88/128         -72/104        -240/320
   15          0/120     -180/255      -165240         -135/195       -450/600
 */
-void printText(int areaX, int areaY, int areaWidth, int lineNr, const char *str, uint8_t textSize, const GFXfont *f, bool wipe) {
+void printText(int areaX, int areaY, int areaWidth, int lineNr, const char *str, uint8_t textSize, const GFXfont *f, bool wipe, int foreground) {
   // get text bounds
   GFXcanvas1 testCanvas(tft_getWidth(), tft_getHeight());
   int16_t x1; int16_t y1; uint16_t w; uint16_t h;
@@ -275,10 +279,9 @@ void printText(int areaX, int areaY, int areaWidth, int lineNr, const char *str,
   canvas.setTextWrap(false);
   canvas.setCursor(0, textAreaOffset);
   canvas.println(str);
-  tft.drawBitmap(areaX, areaY + lineNr*textAreaHeight, canvas.getBuffer(), areaWidth, textAreaHeight, TFT_WHITE, TFT_BLACK);
+  tft.drawBitmap(areaX, areaY + lineNr*textAreaHeight, canvas.getBuffer(), areaWidth, textAreaHeight, foreground, TFT_BLACK);
   #endif
 }
-#endif
 
 void switchOff_screen(boolean switchOff) {
   #ifdef useTFT
@@ -295,50 +298,126 @@ void switchOff_screen(boolean switchOff) {
 }
 
 void draw_screen(void) {
-  if (getModeIsOff()) {
+  if (modeIsOff) {
     return;
   }
   #ifdef useTFT
   char buffer[100];
-  // don't understand why I have to do this
-  #ifdef useTouch
-  String percentEscaped = "%%";
-  #else
-  String percentEscaped = "%";
-  #endif
+  char percentEscaped = 0x25;
+  char degreesSymbol = 0x7F;
 
   if (screen == SCREEN_NORMALMODE) {
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
-    // actual temperature and target temperature
-    #ifdef useAutomaticTemperatureControl
-    sprintf(buffer, "%.1f (actual)", getActualTemperature());
-    printText(tempAreaLeft, tempAreaTop, tempAreaWidth, 0, buffer, textSizeOffset + 2, myFont, true);
-    sprintf(buffer, "%.1f (target)", getTargetTemperature());
-    printText(tempAreaLeft, tempAreaTop, tempAreaWidth, 1, buffer, textSizeOffset + 2, myFont, true);
-    #endif
+    int color;
+    // temperature
+    color = TFT_WHITE;
+    sprintf(buffer, "Radiator Temperature:");
+    printText(tempAreaLeft, tempAreaTop - 25, tempAreaWidth - 50, 0, buffer,      textSizeOffset + 1, myFontB, false, color);
+    if (temperature[0] < 36) color = TFT_GREEN;
+    else if (temperature[0] < 38) color = TFT_YELLOW;
+    else color = TFT_RED;
+    sprintf(buffer, "%.1f", temperature[0]);
+    printText(tempAreaLeft, tempAreaTop, tempAreaWidth - 230, 0, buffer, textSizeOffset + 2, myFont, true, color);
+    sprintf(buffer, "%.1f", temperature[1]);
+    printText(tempAreaLeft, tempAreaTop, tempAreaWidth - 230, 1, buffer, textSizeOffset + 2, myFont, true, color);
+    color = TFT_WHITE;
+    sprintf(buffer, "%cC High", degreesSymbol);
+    printText(tempAreaLeft + 70, tempAreaTop, tempAreaWidth - 150, 0, buffer, textSizeOffset + 2, myFont, false, color);
+    sprintf(buffer, "%cC Low", degreesSymbol);
+    printText(tempAreaLeft + 70, tempAreaTop, tempAreaWidth, 1, buffer, textSizeOffset + 2, myFont, false, color);
+    
+    // sprintf(buffer, "%d/255 PWM (%d%s)", getPWMvalue(), (100*getPWMvalue())/255, percentEscaped.c_str());
+    // printText(tempAreaLeft, tempAreaTop, tempAreaWidth, 2, buffer, textSizeOffset + 2, myFont, true);
   
     // fan
-    printText(fanAreaLeft, fanAreaTop, fanAreaWidth, 0, "Fan:", textSizeOffset + 1, myFont, false);
-    sprintf(buffer, "%d rpm (%d%s)", last_rpm, (100*last_rpm)/FANMAXRPM, percentEscaped.c_str());
-    printText(fanAreaLeft, fanAreaTop, fanAreaWidth, 1, buffer, textSizeOffset + 1, myFont, true);
-    sprintf(buffer, "%d/255 pwm (%d%s)", getPWMvalue(), (100*getPWMvalue())/255, percentEscaped.c_str());
-    printText(fanAreaLeft, fanAreaTop, fanAreaWidth, 2, buffer, textSizeOffset + 1, myFont, true);
-
-    // relative humidity, barometric pressure and ambient temperature
-    #ifdef useTemperatureSensorBME280
+    printText(fanAreaLeft, fanAreaTop, fanAreaWidth, 0, "RPM:     Load:        Duty:", textSizeOffset + 1, myFontB, false, TFT_WHITE);
+    for (int i = 0; i < 3; i++) {
+      int load = 100*rpm[i]/FANMAXRPM1;
+      if (load < 1) color = TFT_WHITE;
+      else if (load < 50) color = TFT_GREEN;
+      else if (load < 80) color = TFT_YELLOW;
+      else color = TFT_RED;
+      sprintf(buffer, "%4d  (%3d%c)  %3d/255 (%3d%c)", rpm[i], load, percentEscaped, pwmValue, (100*pwmValue)/255, percentEscaped);
+      printText(fanAreaLeft, fanAreaTop + 8, fanAreaWidth, i+1, buffer, textSizeOffset + 1, myFontM, true, color);
+    }
+    
+    // footer
     int ambientLine = 0;
-    printText(ambientAreaLeft, ambientAreaTop, ambientAreaWidth, ambientLine++, "Ambient:", textSizeOffset + 1, myFont, false);
-    #if   ( (!defined(useAutomaticTemperatureControl) && defined(useTemperatureSensorBME280)) || ( defined(useAutomaticTemperatureControl) && defined(setActualTemperatureViaMQTT)) )
-    sprintf(buffer, "%.1f temperature", lastTempSensorValues[0]);
-    printText(ambientAreaLeft, ambientAreaTop, ambientAreaWidth, ambientLine++, buffer,      textSizeOffset + 1, myFont, true);
-    #endif
-    sprintf(buffer, "%.2f hPa (%.2f m)", lastTempSensorValues[1], lastTempSensorValues[2]);
-    printText(ambientAreaLeft, ambientAreaTop, ambientAreaWidth, ambientLine++, buffer,      textSizeOffset + 1, myFont, true);
-    sprintf(buffer, "%.2f%s humidity", lastTempSensorValues[3], percentEscaped.c_str());
-    printText(ambientAreaLeft, ambientAreaTop, ambientAreaWidth, ambientLine++, buffer,      textSizeOffset + 1, myFont, true);
-    #endif
-  
+    color = TFT_WHITE;
+    sprintf(buffer, "Flow Rate:");
+    printText(ambientAreaLeft, ambientAreaTop, ambientAreaWidth - 210, ambientLine, buffer,      textSizeOffset + 1, myFontB, false, color);
+    if (rpm[3] < 400) color = TFT_RED;
+    else color = TFT_GREEN;
+    sprintf(buffer, "%.0f L/hour", rpm[3]*60*0.01);
+    printText(ambientAreaLeft + 100, ambientAreaTop, ambientAreaWidth, ambientLine++, buffer,      textSizeOffset + 2, myFont, true, color);
+    /*
+    color = TFT_WHITE;
+    printText(ambientAreaLeft, ambientAreaTop, ambientAreaWidth, ambientLine++, "Parameters:", textSizeOffset + 1, myFontB, false, color);
+    sprintf(buffer, "%.1f-%.1f %cC Min-Max temperature", getMinTemperature(),getMaxTemperature(), degreesSymbol);
+    printText(ambientAreaLeft, ambientAreaTop, ambientAreaWidth, ambientLine++, buffer,      textSizeOffset + 1, myFont, true, color);
+    // sprintf(buffer, "%.1f Min temperature", getMinTemperature());
+    // printText(ambientAreaLeft, ambientAreaTop, ambientAreaWidth, ambientLine++, buffer,      textSizeOffset + 1, myFont, true);
+    sprintf(buffer, "%.1f C Offset temperature", getOffsetTemperature());
+    printText(ambientAreaLeft, ambientAreaTop, ambientAreaWidth, ambientLine++, buffer,      textSizeOffset + 1, myFont, true, color);
+    */
+    
+    // WiFi RSSI
+    int8_t rssi = WiFi.RSSI();
+    // sprintf(buffer, "RSSI: %s", (String)rssi);
+    // printText(getRelativeX(260), tempAreaTop, tempAreaWidth, 0, buffer,      textSizeOffset + 1, myFont, true);
+    int xOffset = 190;
+    if (rssi >= -55) rssi = 5;  
+    else if (rssi < -55 & rssi > -65) rssi = 4;
+    else if (rssi < -65 & rssi > -75) rssi = 3;
+    else if (rssi < -75 & rssi > -85) rssi = 2;
+    else if (rssi < -85 & rssi > -96) rssi = 1;
+    else rssi = 0;
+    if (!WiFi.isConnected()) rssi =0;
+    if (lastRSSI != rssi) {
+      int yBar1 = 18;
+      int yBar2 = 16;
+      int yBar3 = 12;
+      int yBar4 = 8;
+      int yBar5 = 4;
+      if (rssi == 5) { 
+        tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_GREEN);
+        tft.fillRect(xOffset + 107,yBar2,4,4 , TFT_GREEN);
+        tft.fillRect(xOffset + 112,yBar3,4,8 , TFT_GREEN);
+        tft.fillRect(xOffset + 117,yBar4,4,12, TFT_GREEN);
+        tft.fillRect(xOffset + 122,yBar5,4,16, TFT_GREEN);
+      } else if (rssi == 4) {
+        tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_GREEN);
+        tft.fillRect(xOffset + 107,yBar2,4,4 , TFT_GREEN);
+        tft.fillRect(xOffset + 112,yBar3,4,8 , TFT_GREEN);
+        tft.fillRect(xOffset + 117,yBar4,4,12, TFT_GREEN);
+        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_GREEN);
+      } else if (rssi == 3) {
+        tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_YELLOW);
+        tft.fillRect(xOffset + 107,yBar2,4,4 , TFT_YELLOW);
+        tft.fillRect(xOffset + 112,yBar3,4,8 , TFT_YELLOW);
+        tft.drawRect(xOffset + 117,yBar4,2,12, TFT_YELLOW);
+        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_YELLOW);
+      } else if (rssi == 2) {
+        tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_YELLOW);
+        tft.fillRect(xOffset + 107,yBar2,4,4 , TFT_YELLOW);
+        tft.drawRect(xOffset + 112,yBar3,4,8 , TFT_YELLOW);
+        tft.drawRect(xOffset + 117,yBar4,4,12, TFT_YELLOW);
+        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_YELLOW);
+      } else if (rssi == 1) {
+        tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_RED);
+        tft.drawRect(xOffset + 107,yBar2,4,4 , TFT_RED);
+        tft.drawRect(xOffset + 112,yBar3,4,8 , TFT_RED);
+        tft.drawRect(xOffset + 117,yBar4,4,12, TFT_RED);
+        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_RED);
+      } else {
+        tft.drawRect(xOffset + 102,yBar1,4,2 , TFT_RED);
+        tft.drawRect(xOffset + 107,yBar2,4,4 , TFT_RED);
+        tft.drawRect(xOffset + 112,yBar3,4,8 , TFT_RED);
+        tft.drawRect(xOffset + 117,yBar4,4,12, TFT_RED);
+        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_RED);
+      }
+      lastRSSI = rssi;
+    }
+
     #ifdef useTouch
     // increase temperature or pwm
     tft.fillRoundRect(valueUpRect[0],   valueUpRect[1],    valueUpRect[2],   valueUpRect[3],   4, TFT_GREEN);

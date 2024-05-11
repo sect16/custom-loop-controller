@@ -8,8 +8,8 @@
 
 int pwmValue = 0;
 bool modeIsOff = false;
-void updateMQTT_Screen_withNewPWMvalue(int aPWMvalue, bool force);
-void updateMQTT_Screen_withNewMode(bool aModeIsOff, bool force);
+void setPWMvalue(int aPWMvalue, bool force);
+void setFanMode(bool aModeIsOff, bool force);
 
 // https://randomnerdtutorials.com/esp32-pwm-arduino-ide/
 void initPWMfan(void){
@@ -17,35 +17,31 @@ void initPWMfan(void){
   ledcSetup(PWMCHANNEL, PWMFREQ, PWMRESOLUTION);
   // attach the channel to the GPIO to be controlled
   ledcAttachPin(PWMPIN, PWMCHANNEL);
-
   pwmValue = INITIALPWMVALUE;
-  updateMQTT_Screen_withNewPWMvalue(pwmValue, true);
-  updateMQTT_Screen_withNewMode(false, true);
-
+  setPWMvalue(pwmValue, true);
+  setFanMode(false, true);
   Log.printf("  Fan PWM sucessfully initialized.\r\n");
 }
 
-void updateFanSpeed(void){
+void setFanSpeed(void){
   ledcWrite(PWMCHANNEL, pwmValue);
 }
 
-void updateMQTT_Screen_withNewPWMvalue(int aPWMvalue, bool force) {
+void setPWMvalue(int aPWMvalue, bool force) {
   // note: it is not guaranteed that fan stops if pwm is set to 0
   if (modeIsOff) {aPWMvalue = 0;}
   if ((pwmValue != aPWMvalue) || force) {
     pwmValue = aPWMvalue;
     if (pwmValue < 0) {pwmValue = 0;};
     if (pwmValue > 255) {pwmValue = 255;};
-    updateFanSpeed();
+    setFanSpeed();
     #ifdef useMQTT
-    mqtt_publish_stat_fanPWM();
-    mqtt_publish_tele();
+    mqtt_publish_tele2();
     #endif
-    draw_screen();
   }
 }
 
-void updateMQTT_Screen_withNewMode(bool aModeIsOff, bool force) {
+void setFanMode(bool aModeIsOff, bool force) {
   if ((modeIsOff != aModeIsOff) || force) {
     modeIsOff = aModeIsOff;
     #ifdef useMQTT
@@ -54,27 +50,8 @@ void updateMQTT_Screen_withNewMode(bool aModeIsOff, bool force) {
     switchOff_screen(modeIsOff);
   }
   if (modeIsOff) {
-    updateMQTT_Screen_withNewPWMvalue(0, true);
+    setPWMvalue(0, true);
   } else {
-    updateMQTT_Screen_withNewPWMvalue(INITIALPWMVALUE, true);
+    setPWMvalue(INITIALPWMVALUE, true);
   }
-}
-
-#ifndef useAutomaticTemperatureControl
-void incFanSpeed(void){
-  int newPWMValue = min(pwmValue+PWMSTEP, 255);
-  updateMQTT_Screen_withNewPWMvalue(newPWMValue, false);
-}
-void decFanSpeed(void){
-  int newPWMValue = max(pwmValue-PWMSTEP, 0);
-  updateMQTT_Screen_withNewPWMvalue(newPWMValue, false);
-}
-#endif
-
-int getPWMvalue(){
-  return pwmValue;
-}
-
-bool getModeIsOff(void) {
-  return modeIsOff;
 }

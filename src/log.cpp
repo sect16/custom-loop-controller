@@ -2,7 +2,7 @@
 #include <esp32-hal-log.h>
 #include "config.h"
 #include "log.h"
-#include "sensorBME280.h"
+#include "sensorNTC.h"
 #include "fanPWM.h"
 #include "fanTacho.h"
 #include "temperatureController.h"
@@ -76,13 +76,8 @@ size_t LogStreamClass::printf(const char * format, ...) {
 LogStreamClass Log;
 
 void doLog(void){
-  #ifdef useTemperatureSensorBME280
-  Log.printf("actual temperature = %.2f *C, pressure = %.2f hPa, approx. altitude = %.2f m, humidity = %.2f %%\r\n", lastTempSensorValues[0], lastTempSensorValues[1], lastTempSensorValues[2], lastTempSensorValues[3]);
-  #endif
-  #ifdef useAutomaticTemperatureControl
-  Log.printf("target temperature = %.2f *C\r\n", getTargetTemperature());
-  #endif
-  Log.printf("fan rpm = %d, fan pwm = %d\r\n", last_rpm, getPWMvalue());
+  Log.printf("High/Low temperature = %.2f/%.2f *C\r\n", temperature[0], temperature[1]);
+  Log.printf("rpm1 = %d, rpm2 = %d, rpm3 = %d , rpm4 = %d, pwm = %d\r\n", rpm[0], rpm[1], rpm[2], rpm[3], pwmValue);
 }
 
 
