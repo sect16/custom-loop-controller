@@ -25,7 +25,7 @@ Main features are:
 
 ## Integration in Home Assistant
 With mqtt discovery, you can integrate the fan controller with almost no effort in Home Assistant.
-<a href="https://github.com/sect16/custom-loop-controller/blob/main/wiki/images/HA_MQTT.png"><img src="https://github.com/sect16/custom-loop-controller/blob/main/wiki/images/HA_MQTT.png"></a> <a href="https://github.com/KlausMu/esp32-fan-controller/wiki/images/Temperature_control_card.png"><img src="https://github.com/sect16/custom-loop-controller/blob/main/wiki/images/Temperature_control_card.png"></a>
+<a href="https://github.com/sect16/custom-loop-controller/assets/89375638/0654a639-1b35-4dd5-8576-122511d86f72"><img src="https://github.com/sect16/custom-loop-controller/assets/89375638/0654a639-1b35-4dd5-8576-122511d86f72"></a> <a href="https://github.com/sect16/custom-loop-controller/assets/89375638/e1037dc7-9e3f-4240-8aa1-35e372fba79c"><img src="https://github.com/sect16/custom-loop-controller/assets/89375638/e1037dc7-9e3f-4240-8aa1-35e372fba79c"></a>
 
 Please see <a href="https://github.com/KlausMu/esp32-fan-controller/wiki/05-Home-Assistant">Wiki: 05 Home Assistant</a>
 
@@ -38,10 +38,10 @@ Manual Mode Off | Automatic temperature control<br>fan speed is automatically se
 
 TFT panel shows status information for each the fan, water temperatures and water flow meter. Tested only with 320x240).
 
-<a href="https://github.com/sect16/custom-loop-controller/blob/main/wiki/images/TFT.jpg"><img src="https://github.com/sect16/custom-loop-controller/blob/main/wiki/images/TFT.jpg"></a>
+<a href="https://github.com/sect16/custom-loop-controller/assets/89375638/2751ee6c-7eb1-4dcc-8c1b-ae502f95f026"><img src="https://github.com/sect16/custom-loop-controller/assets/89375638/2751ee6c-7eb1-4dcc-8c1b-ae502f95f026"></a>
 
 ## Wiring diagram
-![Wiring diagram](https://github.com/sect16/custom-loop-controller/blob/main/wiki/images/schematic.jpg)
+![Wiring diagram](https://github.com/sect16/custom-loop-controller/assets/89375638/438657b7-2fbb-4622-b48d-e912e815d183)
 
 ## Part list
 Function | Parts | Remarks | approx. price
