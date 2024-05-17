@@ -4,20 +4,20 @@
   #include <WiFi.h>
 #endif
 #if defined(ESP8266)
-  #include <ESP8266WiFi.h> 
+  #include <ESP8266WiFi.h>
 #endif
-#include <WiFiClient.h>
 #include <PubSubClient.h>
+#include <WiFiClient.h>
 
 #include "config.h"
-#include "log.h"
-#include "wifiCommunication.h"
-#include "mqtt.h"
 #include "fanPWM.h"
 #include "fanTacho.h"
-#include "sensorBME280.h"
+#include "log.h"
+#include "mqtt.h"
+#include "sensorNTC.h"
 #include "temperatureController.h"
 #include "tft.h"
+#include "wifiCommunication.h"
 
 #ifdef useMQTT
 // https://randomnerdtutorials.com/esp32-mqtt-publish-subscribe-arduino-ide/
@@ -31,7 +31,7 @@ unsigned long lastReconnectAttempt = millis() - reconnectInterval - 1;
 unsigned long timerStartForHAdiscovery = 1;
 #endif
 
-void callback(char* topic, byte* payload, unsigned int length);
+void callback(char *topic, byte *payload, unsigned int length);
 
 WiFiClient wifiClient;
 
@@ -40,13 +40,13 @@ PubSubClient mqttClient(MQTT_SERVER, MQTT_SERVER_PORT, callback, wifiClient);
 bool checkMQTTconnection();
 
 void mqtt_setup() {
-  #ifdef useHomeassistantMQTTDiscovery
+#ifdef useHomeassistantMQTTDiscovery
   // Set buffer size to allow hass discovery payload
   mqttClient.setBufferSize(1280);
-  #endif
+#endif
 }
 
-void mqtt_loop(){
+void mqtt_loop() {
   if (!mqttClient.connected()) {
     unsigned long currentMillis = millis();
     if ((currentMillis - lastReconnectAttempt) > reconnectInterval) {
@@ -54,7 +54,7 @@ void mqtt_loop(){
       // Attempt to reconnect
       checkMQTTconnection();
     }
-  }  
+  }
 
   if (mqttClient.connected()) {
     mqttClient.loop();
@@ -62,56 +62,51 @@ void mqtt_loop(){
 }
 
 bool checkMQTTconnection() {
-  if (wifiIsDisabled) return false;
-
-  if (WiFi.isConnected()) {
-    if (mqttClient.connected()) {
-      return true;
-    } else {
-      // try to connect to mqtt server
+  if (wifiIsDisabled || !WiFi.isConnected() || !mqttClient.connected()) {
+    if (!wifiIsDisabled && WiFi.isConnected() && !mqttClient.connected()) {
       #if !defined(useHomeassistantMQTTDiscovery)
       if (mqttClient.connect(MQTT_CLIENTNAME, MQTT_USER, MQTT_PASS)) {
       #else
-      // In case of Home Assistant, connect with last will to the broker to set the device offline when the esp32 fan controller is swtiched off
-      if (mqttClient.connect(MQTT_CLIENTNAME, MQTT_USER, MQTT_PASS,
-                             HASSFANSTATUSTOPIC, 0, 1, HASSSTATUSOFFLINEPAYLOAD)) {
+      if (mqttClient.connect(MQTT_CLIENTNAME, MQTT_USER, MQTT_PASS, HASSFANSTATUSTOPIC, 0, 1, HASSSTATUSOFFLINEPAYLOAD)) {
       #endif
         Log.printf("  Successfully connected to MQTT broker\r\n");
-    
-        // subscribes to messages with given topic.
-        // Callback function will be called 1. in client.loop() 2. when sending a message
-        mqttClient.subscribe(MQTTCMNDTARGETTEMP);
-        mqttClient.subscribe(MQTTCMNDACTUALTEMP);
-        mqttClient.subscribe(MQTTCMNDFANPWM);
+        mqttClient.subscribe(MQTTCMNDTEMPMAX);
+        mqttClient.subscribe(MQTTCMNDTEMPMIN);
+        mqttClient.subscribe(MQTTCMNDTEMPOFFSET);
+        mqttClient.subscribe(MQTTCMNDMANUAL);
+        mqttClient.subscribe(MQTTCMNDPWMMANUAL);
+        mqttClient.subscribe(MQTTCMNDPWMMINIMUM);
         mqttClient.subscribe(MQTTCMNDFANMODE);
+        mqttClient.subscribe(MQTTCMNDPWMSTEP);
         #if defined(useOTAUpdate)
         mqttClient.subscribe(MQTTCMNDOTA);
         #endif
+        mqttClient.subscribe(MQTTCMNDRESTART);
         #if defined(useHomeassistantMQTTDiscovery)
         mqttClient.subscribe(HASSSTATUSTOPIC);
         #endif
       } else {
         Log.printf("  MQTT connection failed (but WiFi is available). Will try later ...\r\n");
       }
-      return mqttClient.connected();
+    } else {
+      Log.printf("  No connection to MQTT server, because WiFi is not connected.\r\n");
     }
-  } else {
-    Log.printf("  No connection to MQTT server, because WiFi ist not connected.\r\n");
     return false;
-  }  
+  }
+  return true;
 }
 
-bool publishMQTTMessage(const char *topic, const char *payload, boolean retained){
-  if (wifiIsDisabled) return false;
+bool publishMQTTMessage(const char *topic, const char *payload, boolean retained) {
+  if (wifiIsDisabled)
+    return false;
 
   if (checkMQTTconnection()) {
-//  Log.printf("Sending mqtt payload to topic \"%s\": %s\r\n", topic, payload);
-      
+    //  Log.printf("Sending mqtt payload to topic \"%s\": %s\r\n", topic, payload);
+
     if (mqttClient.publish(topic, payload, retained)) {
       // Log.printf("Publish ok\r\n");
       return true;
-    }
-    else {
+    } else {
       Log.printf("Publish failed\r\n");
     }
   } else {
@@ -120,60 +115,76 @@ bool publishMQTTMessage(const char *topic, const char *payload, boolean retained
   return false;
 }
 
-bool publishMQTTMessage(const char *topic, const char *payload){
+bool publishMQTTMessage(const char *topic, const char *payload) {
   return publishMQTTMessage(topic, payload, false);
 }
 
-bool mqtt_publish_stat_targetTemp() {
-  return publishMQTTMessage(MQTTSTATTARGETTEMP, ((String)getTargetTemperature()).c_str());
-};
-bool mqtt_publish_stat_actualTemp() {
-  return publishMQTTMessage(MQTTSTATACTUALTEMP, ((String)getActualTemperature()).c_str());
-};
-bool mqtt_publish_stat_fanPWM() {
-  return publishMQTTMessage(MQTTSTATFANPWM,     ((String)getPWMvalue()).c_str());
-};
 bool mqtt_publish_stat_mode() {
-  return publishMQTTMessage(MQTTSTATFANMODE,    getModeIsOff() ? MQTTFANMODEOFFPAYLOAD : MQTTFANMODEFANONLYPAYLOAD);
+  return publishMQTTMessage(MQTTSTATFANMODE, modeIsOff ? MQTTFANMODEOFFPAYLOAD : MQTTFANMODEFANONLYPAYLOAD);
 };
-#ifdef useShutdownButton
-bool mqtt_publish_shutdown() {
-  return publishMQTTMessage(MQTTCMNDSHUTDOWNTOPIC, MQTTCMNDSHUTDOWNPAYLOAD);
+bool mqtt_publish_stat_tempMax() {
+  return publishMQTTMessage(MQTTSTATTEMPMAX, ((String)temperatureMax).c_str());
 };
-#endif
+bool mqtt_publish_stat_tempMin() {
+  return publishMQTTMessage(MQTTSTATTEMPMIN, ((String)temperatureMin).c_str());
+};
+bool mqtt_publish_stat_tempOffset() {
+  return publishMQTTMessage(MQTTSTATTEMPOFFSET, ((String)temperatureOffset).c_str());
+};
+bool mqtt_publish_stat_pwmManual() {
+  return publishMQTTMessage(MQTTSTATPWMMANUAL, ((String)pwmManual).c_str());
+};
+bool mqtt_publish_stat_manual() {
+  return publishMQTTMessage(MQTTSTATMANUAL, ((String)getManual()).c_str());
+};
+bool mqtt_publish_stat_pwmMinimum() {
+  return publishMQTTMessage(MQTTSTATPWMMINIMUM, ((String)pwmMinimum).c_str());
+};
+bool mqtt_publish_stat_pwmStep() {
+  return publishMQTTMessage(MQTTSTATPWMSTEP, ((String)pwmStep).c_str());
+};
 
 #ifdef useHomeassistantMQTTDiscovery
 bool mqtt_publish_hass_discovery() {
   Log.printf("Will send HA discovery now.\r\n");
   bool error = false;
-  #ifdef useAutomaticTemperatureControl
-  error =          !publishMQTTMessage(HASSCLIMATEDISCOVERYTOPIC,           HASSCLIMATEDISCOVERYPAYLOAD);
-  #else
-  error =          !publishMQTTMessage(HASSFANDISCOVERYTOPIC,               HASSFANDISCOVERYPAYLOAD);
-  #endif
-  #ifdef useTemperatureSensorBME280
-  error = error || !publishMQTTMessage(HASSHUMIDITYSENSORDISCOVERYTOPIC,    HASSHUMIDITYSENSORDISCOVERYPAYLOAD);
-  error = error || !publishMQTTMessage(HASSTEMPERATURESENSORDISCOVERYTOPIC, HASSTEMPERATURESENSORDISCOVERYPAYLOAD);
-  error = error || !publishMQTTMessage(HASSPRESSURESENSORDISCOVERYTOPIC,    HASSPRESSURESENSORDISCOVERYPAYLOAD);
-  error = error || !publishMQTTMessage(HASSALTITUDESENSORDISCOVERYTOPIC,    HASSALTITUDESENSORDISCOVERYPAYLOAD);
-  #endif
-  error = error || !publishMQTTMessage(HASSPWMSENSORDISCOVERYTOPIC,         HASSPWMSENSORDISCOVERYPAYLOAD);
-  error = error || !publishMQTTMessage(HASSRPMSENSORDISCOVERYTOPIC,         HASSRPMSENSORDISCOVERYPAYLOAD);
-
-  if (!error) {delay(1000);}
+  error = !publishMQTTMessage(HASSCLIMATEDISCOVERYTOPIC, HASSCLIMATEDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORTEMPERATUREHOTDISCOVERYTOPIC, HASSSENSORTEMPERATUREHOTDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORTEMPERATURECOLDDISCOVERYTOPIC, HASSSENSORTEMPERATURECOLDDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSNUMBEROFFSETDISCOVERYTOPIC, HASSNUMBEROFFSETDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSWITCHMANUALDISCOVERYTOPIC, HASSSWITCHMANUALDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSNUMBERPWMMANUALDISCOVERYTOPIC, HASSNUMBERPWMMANUALDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSNUMBERPWMMINIMUMDISCOVERYTOPIC, HASSNUMBERPWMMINIMUMDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORRPM1DISCOVERYTOPIC, HASSSENSORRPM1DISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORRPM2DISCOVERYTOPIC, HASSSENSORRPM2DISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORRPM3DISCOVERYTOPIC, HASSSENSORRPM3DISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORRPM4DISCOVERYTOPIC, HASSSENSORRPM4DISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORPWMDISCOVERYTOPIC, HASSSENSORPWMDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSNUMBERPWMSTEPDISCOVERYTOPIC, HASSNUMBERPWMSTEPDISCOVERYPAYLOAD);
+  if (!error)
+    delay(1000);
   // publish that we are online. Remark: offline is sent via last will retained message
   error = error || !publishMQTTMessage(HASSFANSTATUSTOPIC, "", true);
   error = error || !publishMQTTMessage(HASSFANSTATUSTOPIC, HASSSTATUSONLINEPAYLOAD);
 
-  if (!error) {delay(1000);}
+  if (!error) {
+    delay(1000);
+  }
   // MODE????
 
   // that's not really part of the discovery message, but this enables the climate slider in HA and immediately provides all values
-  error = error || !mqtt_publish_stat_targetTemp();
-  error = error || !mqtt_publish_stat_actualTemp();
-  error = error || !mqtt_publish_stat_fanPWM();
   error = error || !mqtt_publish_stat_mode();
-  error = error || !mqtt_publish_tele();
+  error = error || !mqtt_publish_stat_manual();
+  error = error || !mqtt_publish_stat_pwmManual();
+  error = error || !mqtt_publish_stat_tempMin();
+  error = error || !mqtt_publish_stat_tempMax();
+  error = error || !mqtt_publish_stat_tempOffset();
+  error = error || !mqtt_publish_stat_pwmMinimum();
+  error = error || !mqtt_publish_stat_pwmStep();
+  error = error || !mqtt_publish_tele1();
+  error = error || !mqtt_publish_tele2();
+  error = error || !mqtt_publish_tele3();
+  error = error || !mqtt_publish_tele4();
   if (!error) {
     // will not resend discovery as long as timerStartForHAdiscovery == 0
     Log.printf("Will set timer to 0 now, this means I will not send discovery again.\r\n");
@@ -185,35 +196,45 @@ bool mqtt_publish_hass_discovery() {
 }
 #endif
 
-bool mqtt_publish_tele() {
+// Temperature telemetry
+bool mqtt_publish_tele1() {
+  bool error = false;
+  // maximum message length 128 Byte
+  String payload = "{";/**/
+  for (int i = 0; i < sizeof(temperature) / sizeof(float); i++) {
+      if (payload != "{") payload += ",";
+      if (i == 0) payload += "\"TempHot\":";
+      else payload += "\"TempCold\":";
+      payload += temperature[i];
+  }
+  payload += "}";
+  if (payload != "{}") error = !publishMQTTMessage(MQTTTELESTATE1, payload.c_str());
+  return !error;
+}
+
+// Tacho/PWM telemetry
+bool mqtt_publish_tele2() {
+  bool error = false;
+  // maximum message length 128 Byte
+  String payload = "{";
+  // Fan
+  for (int i = 0; i < sizeof(rpm) / sizeof(int); i++) {
+      if (payload != "{") payload += ",";
+      payload += "\"rpm" + (String)i + "\":" + rpm[i];
+  }
+  if (payload != "{") payload += ",";
+  payload += "\"pwm\":";
+  payload += pwmValue;
+  payload += "}";
+  if (payload != "{}") error = !publishMQTTMessage(MQTTTELESTATE2, payload.c_str());
+  return !error;
+}
+
+// WiFi telemetry
+bool mqtt_publish_tele3() {
   bool error = false;
   // maximum message length 128 Byte
   String payload = "";
-  // BME280
-  #ifdef useTemperatureSensorBME280
-  payload += "{\"ActTemp\":";
-  payload += lastTempSensorValues[0];
-  payload += ",\"pres\":";
-  payload += lastTempSensorValues[1];
-  payload += ",\"alt\":";
-  payload += lastTempSensorValues[2];
-  payload += ",\"hum\":";
-  payload += lastTempSensorValues[3];
-  payload += ",\"TargTemp\":";
-  payload += getTargetTemperature();
-  payload += "}";
-  error =          !publishMQTTMessage(MQTTTELESTATE1, payload.c_str());
-  #endif
-
-  // Fan
-  payload = "";
-  payload += "{\"rpm\":";
-  payload += last_rpm;
-  payload += ",\"pwm\":";
-  payload += getPWMvalue();
-  payload += "}";
-  error = error || !publishMQTTMessage(MQTTTELESTATE2, payload.c_str());
-
   // WiFi
   payload = "";
   payload += "{\"wifiRSSI\":";
@@ -224,15 +245,22 @@ bool mqtt_publish_tele() {
   payload += WiFi.SSID();
   payload += ",\"wifiBSSID\":";
   payload += WiFi.BSSIDstr();
-  #if defined(WIFI_KNOWN_APS)
+#if defined(WIFI_KNOWN_APS)
   payload += ",\"wifiAP\":";
   payload += accessPointName;
-  #endif
+#endif
   payload += ",\"IP\":";
   payload += WiFi.localIP().toString();
   payload += "}";
-  error = error || !publishMQTTMessage(MQTTTELESTATE3, payload.c_str());
+  error = !publishMQTTMessage(MQTTTELESTATE3, payload.c_str());
+  return !error;
+}
 
+// ESP32 telemetry
+bool mqtt_publish_tele4() {
+  bool error = false;
+  // maximum message length 128 Byte
+  String payload = "";
   // ESP32 stats
   payload = "";
   payload += "{\"up\":";
@@ -246,71 +274,60 @@ bool mqtt_publish_tele() {
   payload += ",\"heapMax\":";
   payload += String(ESP.getMaxAllocHeap());
   payload += "}";
-  error = error || !publishMQTTMessage(MQTTTELESTATE4, payload.c_str());
-
+  error = !publishMQTTMessage(MQTTTELESTATE4, payload.c_str());
   return !error;
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
+void callback(char *topic, byte *payload, unsigned int length) {
   // handle message arrived
   std::string strPayload(reinterpret_cast<const char *>(payload), length);
 
   Log.printf("MQTT message arrived [%s] %s\r\n", topic, strPayload.c_str());
 
   String topicReceived(topic);
-
-  String topicCmndTargetTemp(MQTTCMNDTARGETTEMP);
-  String topicCmndActualTemp(MQTTCMNDACTUALTEMP);
-  String topicCmndFanPWM(MQTTCMNDFANPWM);
+  String topicCmndTempActual(MQTTCMNDTEMPACTUAL);
+  String topicCmndTempMax(MQTTCMNDTEMPMAX);
+  String topicCmndTempMin(MQTTCMNDTEMPMIN);
+  String topicCmndTempOffset(MQTTCMNDTEMPOFFSET);
   String topicCmndFanMode(MQTTCMNDFANMODE);
+  String topicCmndManual(MQTTCMNDMANUAL);
+  String topicCmndPwmManual(MQTTCMNDPWMMANUAL);
+  String topicCmndPwmMinimum(MQTTCMNDPWMMINIMUM);
+  String topicCmndRestart(MQTTCMNDRESTART);
+  String topicCmndPwmStep(MQTTCMNDPWMSTEP);
   #if defined(useOTAUpdate)
   String topicCmndOTA(MQTTCMNDOTA);
   #endif
   #if defined(useHomeassistantMQTTDiscovery)
   String topicHaStatus(HASSSTATUSTOPIC);
   #endif
-  if (topicReceived == topicCmndTargetTemp) {
-    #ifdef useAutomaticTemperatureControl
-    Log.printf("Setting targetTemp via mqtt\r\n");
+  if (topicReceived == topicCmndTempMax) {
+    Log.printf("Setting tempMax via mqtt\r\n");
     float num_float = ::atof(strPayload.c_str());
-    Log.printf("new targetTemp: %.2f\r\n", num_float);
-    updatePWM_MQTT_Screen_withNewTargetTemperature(num_float, true);
-    #else
-    Log.printf("\"#define useAutomaticTemperatureControl\" is NOT used in config.h Cannot set target temperature. Please set fan pwm.\r\n");
-    updatePWM_MQTT_Screen_withNewTargetTemperature(getTargetTemperature(), true);
-    #endif
-  } else if (topicReceived == topicCmndActualTemp) {
-    #if defined(useAutomaticTemperatureControl) && defined(setActualTemperatureViaMQTT)
-    Log.printf("Setting actualTemp via mqtt\r\n");
-    float num_float = ::atoi(strPayload.c_str());
-    Log.printf("new actualTemp: %.2f\r\n", num_float);
-    updatePWM_MQTT_Screen_withNewActualTemperature(num_float, true);
-    #else
-    Log.printf("\"#define setActualTemperatureViaMQTT\" is NOT used in config.h  Cannot set actual temperature. Please use BME280.\r\n");
-    updatePWM_MQTT_Screen_withNewActualTemperature(getActualTemperature(), true);
-    #endif
-  } else if (topicReceived == topicCmndFanPWM) {
-    #ifndef useAutomaticTemperatureControl
-    Log.printf("Setting fan pwm via mqtt\r\n");
-    int num_int = ::atoi(strPayload.c_str());
-    Log.printf("new fan pwm: %d\r\n", num_int);
-    updateMQTT_Screen_withNewPWMvalue(num_int, true);
-    #else
-    Log.printf("\"#define useAutomaticTemperatureControl\" is used in config.h  Cannot set fan pwm. Please set target temperature.\r\n");
-    updateMQTT_Screen_withNewPWMvalue(getPWMvalue(), true);
-    #endif
+    Log.printf("new tempMax: %.2f\r\n", num_float);
+    setTemperatureMax(num_float, false);
+  } else if (topicReceived == topicCmndTempMin) {
+    Log.printf("Setting tempMin via mqtt\r\n");
+    float num_float = ::atof(strPayload.c_str());
+    Log.printf("new tempMin: %.2f\r\n", num_float);
+    setTemperatureMin(num_float, false);
+  } else if (topicReceived == topicCmndTempOffset) {
+    Log.printf("Setting tempOffset via mqtt\r\n");
+    float num_float = ::atof(strPayload.c_str());
+    Log.printf("new tempOffset: %.2f\r\n", num_float);
+    setTemperatureOffset(num_float, false);
   } else if (topicReceived == topicCmndFanMode) {
     Log.printf("Setting HVAC mode from HA received via mqtt\r\n");
     if (strPayload == MQTTFANMODEFANONLYPAYLOAD) {
       Log.printf("  Will turn fan into \"fan_only\" mode\r\n");
-      updateMQTT_Screen_withNewMode(false, true);
+      setFanMode(false, true);
     } else if (strPayload == MQTTFANMODEOFFPAYLOAD) {
       Log.printf("  Will switch fan off\r\n");
-      updateMQTT_Screen_withNewMode(true, true);
+      setFanMode(true, true);
     } else {
       Log.printf("Payload %s not supported\r\n", strPayload.c_str());
     }
-#if defined(useOTAUpdate)
+    #if defined(useOTAUpdate)
   } else if (topicReceived == topicCmndOTA) {
     if (strPayload == "ON") {
       Log.printf("MQTT command TURN ON OTA received\r\n");
@@ -321,21 +338,53 @@ void callback(char* topic, byte* payload, unsigned int length) {
     } else {
       Log.printf("Payload %s not supported\r\n", strPayload.c_str());
     }
-#endif
-#if defined(useHomeassistantMQTTDiscovery)
+    #endif
+  } else if (topicReceived == topicCmndManual) {
+    if (strPayload == "ON") {
+      Log.printf("MQTT command TURN ON MANUAL received\r\n");
+      setManual(true, false);
+    } else if (strPayload == "OFF") {
+      Log.printf("MQTT command TURN OFF MANUAL received\r\n");
+      setManual(false, false);
+    } else {
+      Log.printf("Payload %s not supported\r\n", strPayload.c_str());
+    }
+  } else if (topicReceived == topicCmndPwmManual) {
+    Log.printf("Setting pwmManual via mqtt\r\n");
+    int num_int = ::atoi(strPayload.c_str());
+    Log.printf("new pwmManual: %d\r\n", num_int);
+    setPwmManual(num_int, false);
+    setFanPWMbasedOnTemperature();
+  } else if (topicReceived == topicCmndPwmMinimum) {
+    Log.printf("Setting pwmMinimum via mqtt\r\n");
+    int num_int = ::atoi(strPayload.c_str());
+    Log.printf("new pwmMinimum: %d\r\n", num_int);
+    setPwmMinimum(num_int, false);
+  } else if (topicReceived == topicCmndRestart) {
+    Log.printf("Software reset\r\n");
+    sleep(1);
+    ESP.restart();
+  } else if (topicReceived == topicCmndPwmStep) {
+    Log.printf("Setting pwmStep via mqtt\r\n");
+    int num_int = ::atoi(strPayload.c_str());
+    Log.printf("new pwmStep: %d\r\n", num_int);
+    setPwmStep(num_int, false);
+  #if defined(useHomeassistantMQTTDiscovery)
   } else if (topicReceived == topicHaStatus) {
     if (strPayload == HASSSTATUSONLINEPAYLOAD) {
       Log.printf("HA status online received. This means HA has restarted. Will send discovery again in some seconds as defined in config.h\r\n");
       // set timer so that discovery will be resent after some seconds (as defined in config.h)
       timerStartForHAdiscovery = millis();
       // Very unlikely. Can only happen if millis() overflowed max unsigned long every approx. 50 days
-      if (timerStartForHAdiscovery == 0) {timerStartForHAdiscovery = 1;}
+      if (timerStartForHAdiscovery == 0) {
+        timerStartForHAdiscovery = 1;
+      }
     } else if (strPayload == HASSSTATUSOFFLINEPAYLOAD) {
       Log.printf("HA status offline received. Nice to know. Currently we don't react to this.\r\n");
     } else {
       Log.printf("Payload %s not supported\r\n", strPayload.c_str());
     }
-#endif
+  #endif
   }
 }
 #endif

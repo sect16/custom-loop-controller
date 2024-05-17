@@ -4,12 +4,11 @@
 #include "log.h"
 #include "wifiCommunication.h"
 #include "mqtt.h"
-#include "sensorBME280.h"
+#include "sensorNTC.h"
 #include "fanPWM.h"
 #include "fanTacho.h"
 #include "temperatureController.h"
 #include "tft.h"
-#include "tftTouch.h"
 
 #if defined(useOTAUpdate)
   // https://github.com/SensorsIot/ESP32-OTA
@@ -22,16 +21,17 @@
 #include "TelnetStream.h"
 #endif
 
-unsigned long previousMillis1000Cycle = 0;
-unsigned long interval1000Cycle = 1000;
-unsigned long previousMillis10000Cycle = 0;
-unsigned long interval10000Cycle = 10000;
+unsigned long previousMillisShortCycle = 0;
+unsigned long intervalShortCycle = INTERVALSHORT;
+unsigned long previousMillisMediumCycle = 0;
+unsigned long intervalMediumCycle = INTERVALMEDIUM;
+unsigned long previousMillisLongCycle = 0;
+unsigned long intervalLongCycle = INTERVALLONG;
 
 void setup(){
   Serial.begin(115200);
   Serial.println("");
   Log.printf("Setting things up ...\r\n");
-
   #ifdef useWIFI
   wifi_setup();
   wifi_enable();
@@ -47,31 +47,22 @@ void setup(){
   #ifdef useTFT
   initTFT();
   #endif
-  #ifdef useTouch
-  initTFTtouch();
-  #endif
   initPWMfan();
   initTacho();
-  #ifdef useTemperatureSensorBME280
-  initBME280();
-  #endif
-  #ifdef useAutomaticTemperatureControl
+  initNTC();
   initTemperatureController();
-  #endif
   #ifdef useMQTT
   mqtt_setup();
   #endif
 
-  Log.printf("Settings done. Have fun.\r\n");
+
+  Log.printf("Setup complete\r\n");
 }
 
 void loop(){
   // functions that shall be called as often as possible
   // these functions should take care on their own that they don't nee too much time
   updateTacho();
-  #ifdef useTouch
-  processUserInput();
-  #endif
   #if defined(useOTAUpdate) && !defined(useOTA_RTOS)
   // If you do not use FreeRTOS, you have to regulary call the handle method
   ArduinoOTA.handle();
@@ -83,13 +74,10 @@ void loop(){
 
   unsigned long currentMillis = millis();
 
-  // functions that shall be called every 1000 ms
-  if ((currentMillis - previousMillis1000Cycle) >= interval1000Cycle) {
-    previousMillis1000Cycle = currentMillis;
-
-    #ifdef useTemperatureSensorBME280
-    updateBME280();
-    #endif
+  // Short interval functions
+  if ((currentMillis - previousMillisShortCycle) >= intervalShortCycle) {
+    previousMillisShortCycle = currentMillis;
+    updateNTC();
     #ifdef useAutomaticTemperatureControl
     setFanPWMbasedOnTemperature();
     #endif
@@ -103,12 +91,22 @@ void loop(){
     #endif
   }
 
-  // functions that shall be called every 10000 ms
-  if ((currentMillis - previousMillis10000Cycle) >= interval10000Cycle) {
-    previousMillis10000Cycle = currentMillis;
-
+  // Medium interval functions
+  if ((currentMillis - previousMillisMediumCycle) >= intervalMediumCycle) {
+    previousMillisMediumCycle = currentMillis;
     #ifdef useMQTT
-    mqtt_publish_tele();
+    mqtt_publish_tele1();
+    mqtt_publish_tele2();
+    #endif
+    // doLog();
+  }
+
+  // Long interval functions
+  if ((currentMillis - previousMillisLongCycle) >= intervalLongCycle) {
+    previousMillisLongCycle = currentMillis;
+    #ifdef useMQTT
+    mqtt_publish_tele3();
+    mqtt_publish_tele4();
     #endif
     doLog();
   }
