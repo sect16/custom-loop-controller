@@ -9,7 +9,6 @@ static volatile int counter_rpm[TACHOINPUTS] = {0 , 0, 0, 0};
 int rpm[TACHOINPUTS] = {0, 0, 0, 0};
 unsigned long millisecondsLastTachoMeasurement = 0;
 const int TACHOPIN[TACHOINPUTS] = {TACHOPIN1, TACHOPIN2, TACHOPIN3, TACHOPIN4};
-#define NUMSAMPLES 3
 RunningMedian medianRPM1 = RunningMedian(NUMSAMPLES);
 RunningMedian medianRPM2 = RunningMedian(NUMSAMPLES);
 RunningMedian medianRPM3 = RunningMedian(NUMSAMPLES);

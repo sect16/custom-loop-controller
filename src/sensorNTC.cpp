@@ -5,23 +5,6 @@
 #include "RunningMedian.h"
 
 float temperature[2] = {0, 0};
-// which analog pin to connect
-#define THERMISTORPIN1 34
-#define THERMISTORPIN2 35
-// resistance at 25 degrees C
-#define THERMISTORNOMINAL 10000
-// temp. for nominal resistance (almost always 25 C)
-#define TEMPERATURENOMINAL 25
-// how many samples to take and average, more takes longer
-// but is more 'smooth'
-#define NUMSAMPLES 7
-#define NMEDIAN 3
-// The beta coefficient of the thermistor (usually 3000-4000)
-#define BCOEFFICIENT 3435
-// the value of the 'other' resistor
-#define SERIESRESISTOR 10000
-// Temperature in Kelvin for 25 degree Celsius
-#define KELVINNOMINAL 298.15
 double adcMax, Vs;
 RunningMedian medianTemperature1 = RunningMedian(NUMSAMPLES);
 RunningMedian medianTemperature2 = RunningMedian(NUMSAMPLES);

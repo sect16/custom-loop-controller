@@ -26,18 +26,7 @@
   #endif
 #endif
 
-// --- Home Assistant MQTT discovery --------------------------------------------------------------------------------------------------------
-/* If you are using Home Assistant, you can activate auto discovery of the climate/fan and sensors.
-   Please also see https://github.com/KlausMu/esp32-fan-controller/wiki/06-Home-Assistant
-   If needed, e.g. if you are using more than one esp32 fan controller, please adjust mqtt settings further down in this file */
-#if defined(useMQTT)
-#define useHomeassistantMQTTDiscovery
-#endif
-#if defined(useHomeassistantMQTTDiscovery) && !defined(useMQTT)
-static_assert(false, "You have to use \"#define useMQTT\" when having \"#define useHomeassistantMQTTDiscovery\"");
-#endif
-
-// --- fan parameters ----------------------------------------------------------------------------------------------------------------------------
+// --- Fan parameters ----------------------------------------------------------------------------------------------------------------------------
 // fanPWM
 #define PWMPIN               GPIO_NUM_17  // Single pin output to all fans
 #define PWMFREQ              25000
@@ -59,12 +48,52 @@ static_assert(false, "You have to use \"#define useMQTT\" when having \"#define 
 #define PWMINITIAL                            0    // initial pwm fan speed on startup (0 <= value <= 255)
 #define PWMSTEP                               1    // PWM steps per second (1 <= value <= 255)
 
+// --- NTC thermistor parameters ----------------------------------------------------------------------------------------------------------------------------
+
 // Default temperature values on startup
 #define INITIALTEMPERATUREMAX 40.0
 #define INITIALTEMPERATUREMIN 36.0
 #define INITIALTEMPERATUREOFFSET 1.8
 
-// --- wifi ---------------------------------------------------------------------------------------------------------------------------------
+// which analog pin to connect
+#define THERMISTORPIN1 34
+#define THERMISTORPIN2 35
+// resistance at 25 degrees C
+#define THERMISTORNOMINAL 10000
+// temp. for nominal resistance (almost always 25 C)
+#define TEMPERATURENOMINAL 25
+// how many samples to take and average, more takes longer
+// but is more 'smooth'
+#define NUMSAMPLES 7
+#define NMEDIAN 3
+// The beta coefficient of the thermistor (usually 3000-4000)
+#define BCOEFFICIENT 3435
+// the value of the 'other' resistor
+#define SERIESRESISTOR 10000
+// Temperature in Kelvin for 25 degree Celsius
+#define KELVINNOMINAL 298.15
+
+// --- tft parameters----------------------------------------------------------------------------------------------------------------------------------
+
+#ifdef useTFT
+#define TFT_CS                GPIO_NUM_5    //diplay chip select
+#define TFT_DC                GPIO_NUM_4    //display d/c
+#define TFT_RST               GPIO_NUM_22   //display reset
+#define TFT_MOSI              GPIO_NUM_23   //diplay MOSI
+#define TFT_CLK               GPIO_NUM_18   //display clock
+#define LED_ON                HIGH          // override it in file "config_override.h"
+
+#ifdef DRIVER_ILI9341
+#define TFT_LED               GPIO_NUM_15   //display background LED
+#define TFT_MISO              GPIO_NUM_19   //display MISO
+#define TFT_ROTATION          3 // use 1 (landscape) or 3 (landscape upside down), nothing else. 0 and 2 (portrait) will not give a nice result.
+#endif
+#ifdef DRIVER_ST7735
+#define TFT_ROTATION          1 // use 1 (landscape) or 3 (landscape upside down), nothing else. 0 and 2 (portrait) will not give a nice result.
+#endif
+#endif
+
+// --- wifi parameters ---------------------------------------------------------------------------------------------------------------------------------
 
 #ifdef useWIFI
 #define WIFI_SSID     "YourWifiSSID"           // override it in file "config_override.h"
@@ -91,6 +120,17 @@ static_assert(false, "You cannot use \"#define useOTA_RTOS\" without \"#define u
 
 #define useSerial
 #define useTelnetStream
+
+// --- Home Assistant MQTT discovery --------------------------------------------------------------------------------------------------------
+/* If you are using Home Assistant, you can activate auto discovery of the climate/fan and sensors.
+   Please also see https://github.com/KlausMu/esp32-fan-controller/wiki/06-Home-Assistant
+   If needed, e.g. if you are using more than one esp32 fan controller, please adjust mqtt settings further down in this file */
+#if defined(useMQTT)
+#define useHomeassistantMQTTDiscovery
+#endif
+#if defined(useHomeassistantMQTTDiscovery) && !defined(useMQTT)
+static_assert(false, "You have to use \"#define useMQTT\" when having \"#define useHomeassistantMQTTDiscovery\"");
+#endif
 
 // --- mqtt ---------------------------------------------------------------------------------------------------------------------------------
 /*
@@ -229,26 +269,6 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 #define HASSSWITCHMANUALDISCOVERYTOPIC             "homeassistant/switch/" UNIQUE_DEVICE_NAME "/manual/config"
 #define HASSSWITCHMANUALDISCOVERYPAYLOAD           HASSNAME "Manual mode" HASSUNIQUEID "_manual" HASSOBJECT "_manual" HASSICON "mdi:toggle-switch" HASSSTAT "MANUAL" HASSCMND "MANUAL" "\"," HOMEASSISTANTDEVICE ",\"payload_on\":\"ON\",\"payload_off\":\"OFF\"}"
 
-#endif
-
-// --- tft ----------------------------------------------------------------------------------------------------------------------------------
-
-#ifdef useTFT
-#define TFT_CS                GPIO_NUM_5    //diplay chip select
-#define TFT_DC                GPIO_NUM_4    //display d/c
-#define TFT_RST               GPIO_NUM_22   //display reset
-#define TFT_MOSI              GPIO_NUM_23   //diplay MOSI
-#define TFT_CLK               GPIO_NUM_18   //display clock
-#define LED_ON                HIGH          // override it in file "config_override.h"
-
-#ifdef DRIVER_ILI9341
-#define TFT_LED               GPIO_NUM_15   //display background LED
-#define TFT_MISO              GPIO_NUM_19   //display MISO
-#define TFT_ROTATION          3 // use 1 (landscape) or 3 (landscape upside down), nothing else. 0 and 2 (portrait) will not give a nice result.
-#endif
-#ifdef DRIVER_ST7735
-#define TFT_ROTATION          1 // use 1 (landscape) or 3 (landscape upside down), nothing else. 0 and 2 (portrait) will not give a nice result.
-#endif
 #endif
 
 // --- include override settings from seperate file ---------------------------------------------------------------------------------------------------------------
