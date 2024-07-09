@@ -251,6 +251,8 @@ bool mqtt_publish_tele3() {
 #endif
   payload += ",\"IP\":";
   payload += WiFi.localIP().toString();
+  payload += ",\"Hostname\":";
+  payload += WiFi.getHostname();
   payload += "}";
   error = !publishMQTTMessage(MQTTTELESTATE3, payload.c_str());
   return !error;

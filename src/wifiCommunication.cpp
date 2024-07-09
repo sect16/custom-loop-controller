@@ -62,7 +62,8 @@ void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
   connected = false;
 
   printWiFiStatus();
-
+  // WiFi reconnection time in ms
+  delay(5000);
   // shouldn't even be here when wifiIsDisabled, but still happens ...
   if (!wifiIsDisabled) {
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -125,7 +126,6 @@ void onSTAGotIP (WiFiEventStationModeGotIP event_info) {
   Serial.printf(MY_LOG_FORMAT("  Connected: %s\r\n"), WiFi.isConnected() ? "yes" : "no");
   connected = true;
   setAccessPointName();
-
   printWiFiStatus();
 }
 #endif
@@ -188,7 +188,7 @@ void wifi_setup(){
   e3 = WiFi.onStationModeGotIP(onSTAGotIP);// As soon WiFi is connected, start NTP Client
   #endif
   WiFi.mode(WIFI_STA);
-
+  WiFi.setHostname(HOSTNAME);
   wifi_disable();
 }
 #endif

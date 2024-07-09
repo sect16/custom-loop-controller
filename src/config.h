@@ -64,8 +64,8 @@
 #define TEMPERATURENOMINAL 25
 // how many samples to take and average, more takes longer
 // but is more 'smooth'
-#define NUMSAMPLES 7
-#define NMEDIAN 3
+#define NUMSAMPLES 11
+#define NMEDIAN 7
 // The beta coefficient of the thermistor (usually 3000-4000)
 #define BCOEFFICIENT 3435
 // the value of the 'other' resistor
@@ -96,6 +96,7 @@
 // --- wifi parameters ---------------------------------------------------------------------------------------------------------------------------------
 
 #ifdef useWIFI
+#define HOSTNAME "custom-loop"
 #define WIFI_SSID     "YourWifiSSID"           // override it in file "config_override.h"
 #define WIFI_PASSWORD "YourWifiPassword"       // override it in file "config_override.h"
 //#define WIFI_KNOWN_APS_COUNT 2

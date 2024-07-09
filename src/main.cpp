@@ -37,7 +37,7 @@ void setup(){
   wifi_enable();
   #endif
   #if defined(useOTAUpdate)
-  OTA_setup("ESP32fancontroller");
+  OTA_setup(HOSTNAME);
   // Do not start OTA. Save heap space and start it via MQTT only when needed.
   // ArduinoOTA.begin();
   #endif
@@ -54,8 +54,6 @@ void setup(){
   #ifdef useMQTT
   mqtt_setup();
   #endif
-
-
   Log.printf("Setup complete\r\n");
 }
 
