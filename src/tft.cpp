@@ -38,7 +38,6 @@ int screen = SCREEN_NORMALMODE;
 int lastRSSI;
 
 unsigned long startCountdown = 0;
-
 void calcDimensionsOfElements(void);
 void draw_screen(void);
 #endif
@@ -48,8 +47,13 @@ void initTFT(void) {
   // start driver
   #ifdef DRIVER_ILI9341
   // switch display on
-  pinMode(TFT_LED, OUTPUT);
-  digitalWrite(TFT_LED, LED_ON);
+  // pinMode(TFT_LED, OUTPUT);
+  // digitalWrite(TFT_LED, LED_ON);
+  
+  // ledcSetup(TFT_PWM_CHANNEL, TFT_PWM_FREQUENCY, TFT_PWM_BIT);
+  // ledcAttachPin(TFT_LED, TFT_PWM_CHANNEL);
+  // ledcWrite(TFT_PWM_CHANNEL, TFT_PWM_DUTY);
+  analogWrite(TFT_LED, TFT_PWM_DUTY);
   tft.begin();
   myFont = &FreeSans9pt7b;
   myFontM = &FreeMono9pt7b;
@@ -365,13 +369,15 @@ void draw_screen(void) {
     // sprintf(buffer, "RSSI: %s", (String)rssi);
     // printText(getRelativeX(260), tempAreaTop, tempAreaWidth, 0, buffer,      textSizeOffset + 1, myFont, true);
     int xOffset = 190;
-    if (rssi >= -55) rssi = 5;  
+
+    if (!WiFi.isConnected()) rssi =0;
+    else if (rssi >= -55) rssi = 5;  
     else if (rssi < -55 & rssi > -65) rssi = 4;
     else if (rssi < -65 & rssi > -75) rssi = 3;
     else if (rssi < -75 & rssi > -85) rssi = 2;
     else if (rssi < -85 & rssi > -96) rssi = 1;
     else rssi = 0;
-    if (!WiFi.isConnected()) rssi =0;
+    
     if (lastRSSI != rssi) {
       int yBar1 = 18;
       int yBar2 = 16;
@@ -389,31 +395,46 @@ void draw_screen(void) {
         tft.fillRect(xOffset + 107,yBar2,4,4 , TFT_GREEN);
         tft.fillRect(xOffset + 112,yBar3,4,8 , TFT_GREEN);
         tft.fillRect(xOffset + 117,yBar4,4,12, TFT_GREEN);
+        tft.fillRect(xOffset + 117,yBar4,4,12, TFT_BLACK);
         tft.drawRect(xOffset + 122,yBar5,4,16, TFT_GREEN);
       } else if (rssi == 3) {
         tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_YELLOW);
         tft.fillRect(xOffset + 107,yBar2,4,4 , TFT_YELLOW);
         tft.fillRect(xOffset + 112,yBar3,4,8 , TFT_YELLOW);
+        tft.drawRect(xOffset + 117,yBar4,2,12, TFT_BLACK);
         tft.drawRect(xOffset + 117,yBar4,2,12, TFT_YELLOW);
+        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_BLACK);
         tft.drawRect(xOffset + 122,yBar5,4,16, TFT_YELLOW);
       } else if (rssi == 2) {
         tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_YELLOW);
         tft.fillRect(xOffset + 107,yBar2,4,4 , TFT_YELLOW);
+        tft.drawRect(xOffset + 112,yBar3,4,8 , TFT_BLACK);
+        tft.drawRect(xOffset + 112,yBar3,4,8 , TFT_YELLOW);
+        tft.drawRect(xOffset + 117,yBar4,2,12, TFT_BLACK);
+        tft.drawRect(xOffset + 117,yBar4,2,12, TFT_YELLOW);
+        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_BLACK);
+        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_YELLOW);
+      } else if (rssi == 1) {
+        tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_YELLOW);
+        tft.drawRect(xOffset + 107,yBar2,4,4 , TFT_BLACK);
+        tft.drawRect(xOffset + 112,yBar3,4,8 , TFT_BLACK);
+        tft.drawRect(xOffset + 117,yBar4,4,12, TFT_BLACK);
+        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_BLACK);
+        tft.drawRect(xOffset + 107,yBar2,4,4 , TFT_YELLOW);
         tft.drawRect(xOffset + 112,yBar3,4,8 , TFT_YELLOW);
         tft.drawRect(xOffset + 117,yBar4,4,12, TFT_YELLOW);
         tft.drawRect(xOffset + 122,yBar5,4,16, TFT_YELLOW);
-      } else if (rssi == 1) {
-        tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_RED);
-        tft.drawRect(xOffset + 107,yBar2,4,4 , TFT_RED);
-        tft.drawRect(xOffset + 112,yBar3,4,8 , TFT_RED);
-        tft.drawRect(xOffset + 117,yBar4,4,12, TFT_RED);
-        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_RED);
       } else {
-        tft.drawRect(xOffset + 102,yBar1,4,2 , TFT_RED);
-        tft.drawRect(xOffset + 107,yBar2,4,4 , TFT_RED);
-        tft.drawRect(xOffset + 112,yBar3,4,8 , TFT_RED);
-        tft.drawRect(xOffset + 117,yBar4,4,12, TFT_RED);
-        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_RED);
+        tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_BLACK);
+        tft.fillRect(xOffset + 107,yBar2,4,4 , TFT_BLACK);
+        tft.fillRect(xOffset + 112,yBar3,4,8 , TFT_BLACK);
+        tft.fillRect(xOffset + 117,yBar4,4,12, TFT_BLACK);
+        tft.fillRect(xOffset + 122,yBar5,4,16, TFT_BLACK);
+        tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_RED);
+        tft.fillRect(xOffset + 107,yBar2,4,4 , TFT_RED);
+        tft.fillRect(xOffset + 112,yBar3,4,8 , TFT_RED);
+        tft.fillRect(xOffset + 117,yBar4,4,12, TFT_RED);
+        tft.fillRect(xOffset + 122,yBar5,4,16, TFT_RED);
       }
       lastRSSI = rssi;
     }
