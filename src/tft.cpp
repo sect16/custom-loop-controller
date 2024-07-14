@@ -430,11 +430,11 @@ void draw_screen(void) {
         tft.fillRect(xOffset + 112,yBar3,4,8 , TFT_BLACK);
         tft.fillRect(xOffset + 117,yBar4,4,12, TFT_BLACK);
         tft.fillRect(xOffset + 122,yBar5,4,16, TFT_BLACK);
-        tft.fillRect(xOffset + 102,yBar1,4,2 , TFT_RED);
-        tft.fillRect(xOffset + 107,yBar2,4,4 , TFT_RED);
-        tft.fillRect(xOffset + 112,yBar3,4,8 , TFT_RED);
-        tft.fillRect(xOffset + 117,yBar4,4,12, TFT_RED);
-        tft.fillRect(xOffset + 122,yBar5,4,16, TFT_RED);
+        tft.drawRect(xOffset + 102,yBar1,4,2 , TFT_RED);
+        tft.drawRect(xOffset + 107,yBar2,4,4 , TFT_RED);
+        tft.drawRect(xOffset + 112,yBar3,4,8 , TFT_RED);
+        tft.drawRect(xOffset + 117,yBar4,4,12, TFT_RED);
+        tft.drawRect(xOffset + 122,yBar5,4,16, TFT_RED);
       }
       lastRSSI = rssi;
     }

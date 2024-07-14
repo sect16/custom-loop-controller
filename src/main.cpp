@@ -27,6 +27,7 @@ unsigned long previousMillisMediumCycle = 0;
 unsigned long intervalMediumCycle = INTERVALMEDIUM;
 unsigned long previousMillisLongCycle = 0;
 unsigned long intervalLongCycle = INTERVALLONG;
+int loopCount = 0;
 
 void setup(){
   Serial.begin(115200);
@@ -92,6 +93,18 @@ void loop(){
   // Medium interval functions
   if ((currentMillis - previousMillisMediumCycle) >= intervalMediumCycle) {
     previousMillisMediumCycle = currentMillis;
+    #ifdef useWIFI
+    if (WiFi.status() != WL_CONNECTED) {
+      loopCount++;
+      if (loopCount > 10) {
+        Serial.printf(MY_LOG_FORMAT("  Restart ESP, because Wifi loopCount = %i"), loopCount);
+        ESP.restart();
+      }
+      Serial.printf(MY_LOG_FORMAT("  Reconnecting to WiFi...\r\n"));
+      WiFi.disconnect();
+      WiFi.reconnect();
+    }
+    #endif
     #ifdef useMQTT
     mqtt_publish_tele1();
     mqtt_publish_tele2();

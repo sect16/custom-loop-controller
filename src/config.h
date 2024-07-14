@@ -65,7 +65,7 @@
 // how many samples to take and average, more takes longer
 // but is more 'smooth'
 #define NUMSAMPLES 11
-#define NMEDIAN 7
+#define NMEDIAN 3
 // The beta coefficient of the thermistor (usually 3000-4000)
 #define BCOEFFICIENT 3435
 // the value of the 'other' resistor
@@ -91,12 +91,17 @@
 #ifdef DRIVER_ST7735
 #define TFT_ROTATION          1 // use 1 (landscape) or 3 (landscape upside down), nothing else. 0 and 2 (portrait) will not give a nice result.
 #endif
+// #define TFT_PWM_FREQUENCY     1000
+// #define TFT_PWM_CHANNEL       5
+// #define TFT_PWM_BIT           8
+#define TFT_PWM_DUTY          30 // 1-255 LED brightness
+
 #endif
 
 // --- wifi parameters ---------------------------------------------------------------------------------------------------------------------------------
 
 #ifdef useWIFI
-#define HOSTNAME "custom-loop"
+#define HOSTNAME      "CustomHostname"                 // override it in file "config_override.h"
 #define WIFI_SSID     "YourWifiSSID"           // override it in file "config_override.h"
 #define WIFI_PASSWORD "YourWifiPassword"       // override it in file "config_override.h"
 //#define WIFI_KNOWN_APS_COUNT 2
@@ -147,8 +152,8 @@ static_assert(false, "You have to use \"#define useMQTT\" when having \"#define 
 
 #define MQTT_SERVER            "IPAddressOfYourBroker"    // override it in file "config_override.h"
 #define MQTT_SERVER_PORT       1883                       // override it in file "config_override.h"
-#define MQTT_USER              ""                         // override it in file "config_override.h"
-#define MQTT_PASS              ""                         // override it in file "config_override.h"
+#define MQTT_USER              "MQTTUser"                         // override it in file "config_override.h"
+#define MQTT_PASS              "MQTTPassword"                         // override it in file "config_override.h"
 #define MQTT_CLIENTNAME        UNIQUE_DEVICE_NAME
 
 /*
