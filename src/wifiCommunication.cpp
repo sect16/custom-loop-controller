@@ -66,7 +66,7 @@ void WiFiStationDisconnected(WiFiEvent_t event, WiFiEventInfo_t info){
   delay(5000);
   // shouldn't even be here when wifiIsDisabled, but still happens ...
   if (!wifiIsDisabled) {
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    WiFi.reconnect();
   }
 }
 void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){

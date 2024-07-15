@@ -76,9 +76,7 @@ size_t LogStreamClass::printf(const char * format, ...) {
 LogStreamClass Log;
 
 void doLog(void){
-  Log.printf("High/Low temperature = %.2f/%.2f *C\r\nrpm1 = %d, rpm2 = %d, rpm3 = %d , rpm4 = %d, pwm = %d\r\nMax/Min = %.1f/%.1f, Offset = %f", temperature[0], temperature[1], rpm[0], rpm[1], rpm[2], rpm[3], pwmValue, temperatureMax, temperatureMin, temperatureOffset);
-  Log.printf("");
-
+  Log.printf("High/Low temperature = %.2f/%.2f *C\r\nrpm1 = %d, rpm2 = %d, rpm3 = %d , rpm4 = %d, pwm = %d\r\nMax/Min = %.1f/%.1f, Offset = %.1f\r\n", temperature[0], temperature[1], rpm[0], rpm[1], rpm[2], rpm[3], pwmValue, temperatureMax, temperatureMin, temperatureOffset);
 }
 
 

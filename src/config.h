@@ -53,7 +53,7 @@
 // Default temperature values on startup
 #define INITIALTEMPERATUREMAX 40.0
 #define INITIALTEMPERATUREMIN 36.0
-#define INITIALTEMPERATUREOFFSET 1.8
+#define INITIALTEMPERATUREOFFSET -5.6
 
 // which analog pin to connect
 #define THERMISTORPIN1 34
@@ -64,8 +64,8 @@
 #define TEMPERATURENOMINAL 25
 // how many samples to take and average, more takes longer
 // but is more 'smooth'
-#define NUMSAMPLES 11
-#define NMEDIAN 3
+#define NUMSAMPLES 13
+#define NMEDIAN 5
 // The beta coefficient of the thermistor (usually 3000-4000)
 #define BCOEFFICIENT 3435
 // the value of the 'other' resistor

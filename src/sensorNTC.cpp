@@ -286,6 +286,7 @@ const float ADC_LUT[4096] = { 0,
 };
 
 float adcToTemp(float);
+float convertAnalogToTemperature(unsigned int);
 
 void initNTC(void)
 {
@@ -296,13 +297,18 @@ void initNTC(void)
 
 void updateNTC(void)
 {
-  float reading1 = adcToTemp(analogRead(THERMISTORPIN1)) + temperatureOffset;
-  float reading2 = adcToTemp(analogRead(THERMISTORPIN2)) + temperatureOffset;
+  float reading1, reading2;
+  unsigned int adc1 = analogRead(THERMISTORPIN1);
+  unsigned int adc2 = analogRead(THERMISTORPIN2);
+  reading1 = convertAnalogToTemperature(adc1) + temperatureOffset;
+  reading2 = convertAnalogToTemperature(adc2) + temperatureOffset;
   medianTemperature1.add(reading1);
   medianTemperature2.add(reading2);
+  Log.printf("Temp Actual High = %.1f Low = %.1f\r\n", reading1, reading2);
+  // Log.printf("Temp Low %.1f adc = %d\r\n", reading2, adc2);
   temperature[0] = medianTemperature1.getAverage(NMEDIAN);
   temperature[1] = medianTemperature2.getAverage(NMEDIAN);
-  Log.printf("Temp High = %.1f Low = %.1f\r\n", temperature[0], temperature[1]);
+  Log.printf("Temp Average High = %.1f Low = %.1f\r\n", temperature[0], temperature[1]);
   /*
   for (int i = 0; i < medianTemperature1.getSize() ; i++) {
     Log.printf("{%.1f}", medianTemperature1.getSortedElement(i));
@@ -311,18 +317,96 @@ void updateNTC(void)
   setFanPWMbasedOnTemperature();
 }
 
-float adcToTemp(float adc)
+// ADC Value to Temperature for NTC Thermistor.
+// Author: James Sleeman http://sparks.gogo.co.nz/ntc.html
+// Licence: BSD (see footer for legalese)
+//
+// Thermistor characteristics:
+//   Nominal Resistance 10000 at 30°C
+//   Beta Value 2953.29269501711
+//
+// Usage Examples:
+//   float bestAccuracyTemperature    = convertAnalogToTemperature(analogRead(analogPin));
+//   float lesserAccuracyTemperature  = approximateTemperatureFloat(analogRead(analogPin));
+//   int   lowestAccuracyTemperature  = approximateTemperatureInt(analogRead(analogPin));
+//
+// Better accuracy = more resource (memory, flash) demands, the approximation methods 
+// will only produce reasonable results in the range 30-50°C
+//
+//
+// Thermistor Wiring:
+//   Vcc -> [10000 Ohm Resistor] -> Thermistor -> Gnd
+//                             |
+//                             \-> analogPin
+//
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+/** Calculate the temperature in °C from ADC (analogRead) value (best accuracy).
+ *
+ *  This conversion should generate reasonably accurate results over the entire range of 
+ *  the thermistor, it implements the common 'Beta' approximation for a thermistor
+ *  having Beta of 2953.29269501711, and nominal values of 10000Ω at 30°C
+ *
+ *  @param   The result of an ADC conversion (analogRead) in the range 0 to 4095
+ *  @return  Temperature in °C
+ */
+
+float  convertAnalogToTemperature(unsigned int analogReadValue)
 {
-  float Vout, Rt = 0;
-  float T, Tc, Tf = 0;
-  adc = ADC_LUT[(int)adc];
+  // If analogReadValue is 4095, we would otherwise cause a Divide-By-Zero,
+  // Treat as crazy out-of-range temperature.
+  if(analogReadValue == 4095) return 0; 
+                                               
+  return (1/((log(((10000.0 * analogReadValue) / (4095.0 - analogReadValue))/10000.0)/2953.3) + (1 / (273.15 + 30.000)))) - 273.15;
+}
 
-  Vout = adc * Vs / adcMax;
-  Rt = SERIESRESISTOR * Vout / (Vs - Vout);
 
-  T = 1 / (1 / KELVINNOMINAL + log(Rt / THERMISTORNOMINAL) / BCOEFFICIENT); // Temperature in Kelvin
-  Tc = T - 273.15;                                                          // Celsius
-  Tf = Tc * 9 / 5 + 32;                                                     // Fahrenheit
-  // Log.printf("Current temperature = %.2f *C\r\n", Tc + offsetTemperature);
-  return round(Tc * 10) / 10;
+
+
+/** Approximate the temperature in °C from ADC (analogRead) value, using floating-point math.
+ *
+ *  This approximation uses floating point math, but much less complex so may be useful for 
+ *  improved performance, reducing program memory consumption, and reducing runtime memory
+ *  usage.
+ *
+ *  This conversion has the following caveats...
+ *    Suitable Range              : 30°C to 50°C 
+ *    Average Error (Within Range): +/- 0.142 °C°C
+ *    Maximum Error (Within Range): 0.374 °C°C
+ *
+ *  This approximation implements a linear regression of the Beta approximation 
+ *  for a thermistor having Beta of 2953.29269501711, and nominal values of 10000Ω at 
+ *  30°C calculated for temperatures across the range above.
+ *
+ * @param   The result of an ADC conversion (analogRead) in the range 0 to 4095
+ * @return  Temperature in °C (+/- 0.374 °C)
+ */
+
+float  approximateTemperatureFloat(unsigned int analogReadValue)
+{
+  return -0.03328615232037*analogReadValue+97.8243083319094;
+}
+
+/** Approximate the temperature in °C from ADC (analogRead) value, using integer math.
+ *
+ *  This approximation uses only integer math, so has a subsequent resolution of
+ *  of only 1°C, but for very small microcontrollers this is useful as floating point
+ *  math eats your program memory.
+ *
+ *  This conversion has the following caveats...
+ *    Suitable Range              : 30°C to 50°C 
+ *    Average Error (Within Range): +/- 0.339 °C°C
+ *    Maximum Error (Within Range): 1.000 °C°C
+ *
+ *  This approximation implements a linear regression of the Beta approximation 
+ *  for a thermistor having Beta of 2953.29269501711, and nominal values of 10000Ω at 
+ *  30°C calculated for temperatures across the range above.
+ *
+ * @param   The result of an ADC conversion (analogRead) in the range 0 to 4095
+ * @return  Temperature in °C (+/- 1.000 °C)
+ */
+
+int approximateTemperatureInt(unsigned int analogReadValue)
+{
+  return ((((((long)analogReadValue*12) / -361)) + 98)) - 1;
 }
