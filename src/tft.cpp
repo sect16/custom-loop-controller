@@ -349,7 +349,8 @@ void draw_screen(void) {
     color = TFT_WHITE;
     sprintf(buffer, "Flow Rate:");
     printText(ambientAreaLeft, ambientAreaTop, ambientAreaWidth - 210, ambientLine, buffer,      textSizeOffset + 1, myFontB, false, color);
-    if (rpm[3] < 400) color = TFT_RED;
+    if (rpm[3] < 50) color = TFT_RED;
+    else if (rpm[3] < 100) color = TFT_YELLOW;
     else color = TFT_GREEN;
     sprintf(buffer, "%.0f L/hour", rpm[3]*60*0.01);
     printText(ambientAreaLeft + 100, ambientAreaTop, ambientAreaWidth, ambientLine++, buffer,      textSizeOffset + 2, myFont, true, color);

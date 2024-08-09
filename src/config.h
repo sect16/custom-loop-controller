@@ -28,19 +28,19 @@
 
 // --- Fan parameters ----------------------------------------------------------------------------------------------------------------------------
 // fanPWM
-#define PWMPIN               GPIO_NUM_17  // Single pin output to all fans
+#define PWMPIN               GPIO_NUM_16  // Single pin output to all fans
 #define PWMFREQ              25000
 #define PWMCHANNEL           0
 #define PWMRESOLUTION        8
-#define FANMAXRPM1           2500         // only used for showing at how many percent fan is running
-#define FANMAXRPM2           2500         // only used for showing at how many percent fan is running
-#define FANMAXRPM3           2500         // only used for showing at how many percent fan is running
+#define FANMAXRPM1           2700         // only used for showing at how many percent fan is running
+#define FANMAXRPM2           2700         // only used for showing at how many percent fan is running
+#define FANMAXRPM3           2700         // only used for showing at how many percent fan is running
 
 // fanTacho
-#define TACHOPIN1                             GPIO_NUM_16 // Fan 1
-#define TACHOPIN2                             GPIO_NUM_32 // Fan 2
-#define TACHOPIN3                             GPIO_NUM_33 // Fan 3
-#define TACHOPIN4                             GPIO_NUM_25 // Water Flow Meter
+#define TACHOPIN1                             GPIO_NUM_25 // Fan 1
+#define TACHOPIN2                             GPIO_NUM_26 // Fan 2
+#define TACHOPIN3                             GPIO_NUM_27 // Fan 3
+#define TACHOPIN4                             GPIO_NUM_14 // Water Flow Meter
 #define TACHOINPUTS                           4    // Total number of TACHO inputs for iterating
 #define TACHOUPDATECYCLE                      1000 // how often tacho speed shall be determined, in milliseconds
 #define NUMBEROFINTERRUPSINONESINGLEROTATION  2    // Number of interrupts ESP32 sees on tacho signal on a single fan rotation. All the fans I've seen trigger two interrups.
@@ -58,20 +58,10 @@
 // which analog pin to connect
 #define THERMISTORPIN1 34
 #define THERMISTORPIN2 35
-// resistance at 25 degrees C
-#define THERMISTORNOMINAL 10000
-// temp. for nominal resistance (almost always 25 C)
-#define TEMPERATURENOMINAL 25
 // how many samples to take and average, more takes longer
 // but is more 'smooth'
 #define NUMSAMPLES 13
 #define NMEDIAN 5
-// The beta coefficient of the thermistor (usually 3000-4000)
-#define BCOEFFICIENT 3435
-// the value of the 'other' resistor
-#define SERIESRESISTOR 10000
-// Temperature in Kelvin for 25 degree Celsius
-#define KELVINNOMINAL 298.15
 
 // --- tft parameters----------------------------------------------------------------------------------------------------------------------------------
 
@@ -94,7 +84,7 @@
 // #define TFT_PWM_FREQUENCY     1000
 // #define TFT_PWM_CHANNEL       5
 // #define TFT_PWM_BIT           8
-#define TFT_PWM_DUTY          30 // 1-255 LED brightness
+#define TFT_PWM_DUTY          80 // 1-255 LED brightness
 
 #endif
 
@@ -240,7 +230,7 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 // climate
 // see https://www.home-assistant.io/integrations/climate.mqtt/
 #define HASSCLIMATEDISCOVERYTOPIC                  "homeassistant/climate/" UNIQUE_DEVICE_NAME "/config"
-#define HASSCLIMATEDISCOVERYPAYLOAD                "{\"name\":null,\"unique_id\":\"" UNIQUE_DEVICE_NAME "_temperaturehot" HASSOBJECT "" HASSICON "mdi:fan\",\"min_temp\":10,\"max_temp\":50,\"temp_step\":0.1,\"precision\":0.1,\"temperature_high_command_topic\":\"~/cmnd/TEMPMAX\",\"temperature_high_state_topic\":\"~/stat/TEMPMAX\",\"temperature_high_state_template\":\"{{ round(2) }}\",\"temperature_low_command_topic\":\"~/cmnd/TEMPMIN\",\"temperature_low_state_topic\":\"~/stat/TEMPMIN\",\"temperature_low_state_template\":\"{{ round(2) }}\",\"current_temperature_topic\":\"~/tele/STATE1\",\"value_template\":\"{{ value_json.TempHot }}\",\"modes\":[\"off\",\"fan_only\"],\"mode_command_topic\":\"~/cmnd/MODE\",\"mode_state_topic\":\"~/stat/MODE\",\"availability_topic\":\"~/stat/STATUS\"," HOMEASSISTANTDEVICE "}"
+#define HASSCLIMATEDISCOVERYPAYLOAD                "{\"name\":null,\"unique_id\":\"" UNIQUE_DEVICE_NAME "_temperaturehot" HASSOBJECT "" HASSICON "mdi:fan\",\"min_temp\":10,\"max_temp\":60,\"temp_step\":0.1,\"precision\":0.1,\"temperature_high_command_topic\":\"~/cmnd/TEMPMAX\",\"temperature_high_state_topic\":\"~/stat/TEMPMAX\",\"temperature_high_state_template\":\"{{ round(2) }}\",\"temperature_low_command_topic\":\"~/cmnd/TEMPMIN\",\"temperature_low_state_topic\":\"~/stat/TEMPMIN\",\"temperature_low_state_template\":\"{{ round(2) }}\",\"current_temperature_topic\":\"~/tele/STATE1\",\"value_template\":\"{{ value_json.TempHot }}\",\"modes\":[\"off\",\"fan_only\"],\"mode_command_topic\":\"~/cmnd/MODE\",\"mode_state_topic\":\"~/stat/MODE\",\"availability_topic\":\"~/stat/STATUS\"," HOMEASSISTANTDEVICE "}"
 
 // sensors
 // see https://www.home-assistant.io/integrations/sensor.mqtt/

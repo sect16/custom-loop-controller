@@ -30,10 +30,20 @@ void IRAM_ATTR rpm_fan4() {
   counter_rpm[3]++;
 }
 void initTacho(void) {
+  /*
   for (int i=0; i < TACHOINPUTS; i++) {
-    pinMode(TACHOPIN[i], INPUT);
+    pinMode(TACHOPIN[i], INPUT_PULLUP);
     digitalWrite(TACHOPIN[i], HIGH);
   }
+  */
+  pinMode(TACHOPIN[0], INPUT_PULLUP);
+  digitalWrite(TACHOPIN[3], HIGH);
+  pinMode(TACHOPIN[1], INPUT_PULLUP);
+  digitalWrite(TACHOPIN[3], HIGH);
+  pinMode(TACHOPIN[2], INPUT_PULLUP);
+  digitalWrite(TACHOPIN[3], HIGH);
+  pinMode(TACHOPIN[3], INPUT);
+  digitalWrite(TACHOPIN[3], HIGH);
   attachInterrupt(digitalPinToInterrupt(TACHOPIN[0]), rpm_fan1, FALLING);
   attachInterrupt(digitalPinToInterrupt(TACHOPIN[1]), rpm_fan2, FALLING);
   attachInterrupt(digitalPinToInterrupt(TACHOPIN[2]), rpm_fan3, FALLING);

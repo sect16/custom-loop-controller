@@ -104,6 +104,7 @@ void loop(){
       WiFi.disconnect();
       WiFi.reconnect();
     }
+    else loopCount = 0;
     #endif
     #ifdef useMQTT
     mqtt_publish_tele1();

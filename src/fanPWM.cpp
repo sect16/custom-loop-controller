@@ -51,9 +51,6 @@ void setPWMvalue(int pwm, bool force) {
   }
   } 
   setFanSpeed();
-  #ifdef useMQTT
-  mqtt_publish_tele2();
-  #endif
 }
 
 void setFanMode(bool aModeIsOff, bool force) {
