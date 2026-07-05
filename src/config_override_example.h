@@ -12,6 +12,7 @@ If you add additional overrides here, you have to
 #undef MQTT_SERVER_PORT
 #undef MQTT_USER
 #undef MQTT_PASS
+#undef MQTT_CLIENTNAME
 #undef UNIQUE_DEVICE_FRIENDLYNAME
 #undef UNIQUE_DEVICE_NAME
 #undef MQTTCMNDSHUTDOWNTOPIC
@@ -30,6 +31,7 @@ If you add additional overrides here, you have to
 #define MQTT_SERVER_PORT           1883                    // override here
 #define MQTT_USER                  "myUser or empty"       // override here
 #define MQTT_PASS                  "myPassword or empty"   // override here
+#define MQTT_CLIENTNAME            "esp32_fan_controller"   // override here
 #define UNIQUE_DEVICE_FRIENDLYNAME "Fan Controller"        // override here
 #define UNIQUE_DEVICE_NAME         "esp32_fan_controller"  // override here
 #endif

@@ -144,6 +144,11 @@ bool mqtt_publish_stat_pwmStep() {
   return publishMQTTMessage(MQTTSTATPWMSTEP, ((String)pwmStep).c_str());
 };
 
+bool mqtt_publish_stat_ota()
+{
+  return publishMQTTMessage(MQTTSTATOTA, "OFF");
+};
+
 #ifdef useHomeassistantMQTTDiscovery
 bool mqtt_publish_hass_discovery() {
   Log.printf("Will send HA discovery now.\r\n");
@@ -161,6 +166,8 @@ bool mqtt_publish_hass_discovery() {
   error = error || !publishMQTTMessage(HASSSENSORRPM4DISCOVERYTOPIC, HASSSENSORRPM4DISCOVERYPAYLOAD);
   error = error || !publishMQTTMessage(HASSSENSORPWMDISCOVERYTOPIC, HASSSENSORPWMDISCOVERYPAYLOAD);
   error = error || !publishMQTTMessage(HASSNUMBERPWMSTEPDISCOVERYTOPIC, HASSNUMBERPWMSTEPDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSWITCHOTADISCOVERYTOPIC, HASSSWITCHOTADISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSBUTTONRESTARTDISCOVERYTOPIC, HASSBUTTONRESTARTDISCOVERYPAYLOAD);
   if (!error)
     delay(1000);
   // publish that we are online. Remark: offline is sent via last will retained message
@@ -181,6 +188,7 @@ bool mqtt_publish_hass_discovery() {
   error = error || !mqtt_publish_stat_tempOffset();
   error = error || !mqtt_publish_stat_pwmMinimum();
   error = error || !mqtt_publish_stat_pwmStep();
+  error = error || !mqtt_publish_stat_ota();
   error = error || !mqtt_publish_tele1();
   error = error || !mqtt_publish_tele2();
   error = error || !mqtt_publish_tele3();
@@ -331,13 +339,20 @@ void callback(char *topic, byte *payload, unsigned int length) {
     }
     #if defined(useOTAUpdate)
   } else if (topicReceived == topicCmndOTA) {
-    if (strPayload == "ON") {
+    if (strPayload == "ON")
+    {
       Log.printf("MQTT command TURN ON OTA received\r\n");
       ArduinoOTA.begin();
-    } else if (strPayload == "OFF") {
+      publishMQTTMessage(MQTTSTATOTA, "ON");
+    }
+    else if (strPayload == "OFF")
+    {
       Log.printf("MQTT command TURN OFF OTA received\r\n");
       ArduinoOTA.end();
-    } else {
+      publishMQTTMessage(MQTTSTATOTA, "OFF");
+    }
+    else
+    {
       Log.printf("Payload %s not supported\r\n", strPayload.c_str());
     }
     #endif
