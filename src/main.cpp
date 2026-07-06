@@ -9,6 +9,7 @@
 #include "fanTacho.h"
 #include "temperatureController.h"
 #include "tft.h"
+#include "WebServerManager.h"
 
 #if defined(useOTAUpdate)
   // https://github.com/SensorsIot/ESP32-OTA
@@ -21,6 +22,8 @@
 #include "TelnetStream.h"
 #endif
 
+WebServerManager webServer;
+
 unsigned long previousMillisShortCycle = 0;
 unsigned long intervalShortCycle = INTERVALSHORT;
 unsigned long previousMillisMediumCycle = 0;
@@ -28,6 +31,7 @@ unsigned long intervalMediumCycle = INTERVALMEDIUM;
 unsigned long previousMillisLongCycle = 0;
 unsigned long intervalLongCycle = INTERVALLONG;
 int loopCount = 0;
+
 
 void setup(){
   Serial.begin(115200);
@@ -55,6 +59,7 @@ void setup(){
   #ifdef useMQTT
   mqtt_setup();
   #endif
+  webServer.begin();
   Log.printf("Setup complete\r\n");
 }
 
@@ -122,4 +127,5 @@ void loop(){
     #endif
     doLog();
   }
+  webServer.handleClient();
 }
