@@ -4,27 +4,40 @@
 #include <ArduinoOTA.h>
 #include <Update.h>
 #include <WiFi.h>
+#include <log.h>
 
 static const char PAGE[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
 <head>
     <title>ESP32 Maintenance</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        button, input[type="submit"] { padding: 8px 15px; margin: 5px; cursor: pointer; }
+        form { margin-bottom: 20px; }
+    </style>
 </head>
 <body>
 
 <h1>ESP32 Maintenance</h1>
 
 <h2>Firmware Upload</h2>
-
-<form method=input type="file" name="firmware">
-    <input type="submit" value="Upload">
+<!-- Fixed form: added POST method, target action, and multipart encoding -->
+<form method="POST" action="/upload" enctype="multipart/form-data">
+    <input type="file" name="firmware" required>
+    <br><br>
+    <input type="submit" value="Upload Firmware">
 </form>
 
 <hr>
 
+<h2>Network OTA Control</h2>
 <button onclick="enableOTA()">
 Enable PlatformIO OTA
+</button>
+
+<button onclick="disableOTA()">
+Disable PlatformIO OTA
 </button>
 
 <button onclick="restartESP()">
@@ -35,6 +48,13 @@ Restart ESP32
 function enableOTA()
 {
     fetch('/ota/start', {method:'POST'})
+        .then(r => r.text())
+        .then(alert);
+}
+
+function disableOTA()
+{
+    fetch('/ota/stop', {method:'POST'})
         .then(r => r.text())
         .then(alert);
 }
@@ -65,7 +85,11 @@ void WebServerManager::begin()
     server.on("/ota/start", HTTP_POST, [this]() {
         handleOtaStart();
     });
-
+    
+    server.on("/ota/stop", HTTP_POST, [this]() {
+        handleOtaStop();
+    });
+    
     // Both the upload-finished callback and the chunk-handling callback need the capture
     server.on("/upload", HTTP_POST, 
         [this]() {
@@ -78,16 +102,11 @@ void WebServerManager::begin()
 
     server.begin();
 
-    Serial.println("HTTP server started");
+    Log.printf("HTTP server started\r\n");
 }
 void WebServerManager::handleClient()
 {
     server.handleClient();
-}
-
-bool WebServerManager::isOtaEnabled() const
-{
-    return otaEnabled;
 }
 
 void WebServerManager::handleRoot()
@@ -97,21 +116,21 @@ void WebServerManager::handleRoot()
 
 void WebServerManager::handleOtaStart()
 {
-    if (!otaEnabled)
-    {
-        ArduinoOTA.begin();
-        otaEnabled = true;
-    }
-
+    ArduinoOTA.begin();
     server.send(200, "text/plain", "ArduinoOTA enabled");
+}
+
+void WebServerManager::handleOtaStop()
+{
+    ArduinoOTA.end();
+    Log.printf("ArduinoOTA listener stopped.\r\n");
+    server.send(200, "text/plain", "ArduinoOTA disabled");
 }
 
 void WebServerManager::handleReset()
 {
     server.send(200, "text/plain", "Restarting...");
-
     delay(500);
-
     ESP.restart();
 }
 
@@ -123,7 +142,7 @@ void WebServerManager::handleUpload()
     {
         case UPLOAD_FILE_START:
 
-            Serial.printf("Upload start: %s\n",
+            Log.printf("Upload start: %s\n",
                           upload.filename.c_str());
 
             if (!Update.begin(UPDATE_SIZE_UNKNOWN))
@@ -155,7 +174,7 @@ void WebServerManager::handleUpload()
         case UPLOAD_FILE_ABORTED:
 
             Update.end();
-            Serial.println("Upload aborted");
+            Log.printf("Upload aborted\r\n");
 
             break;
 

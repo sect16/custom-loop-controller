@@ -11,12 +11,11 @@ public:
 
 private:
     WebServer server{80};
-    bool otaEnabled{false};
 
     void handleRoot();
     void handleReset();
     void handleOtaStart();
-
+    void handleOtaStop();
     void handleUpload();
     void handleUploadFinished();
 };
