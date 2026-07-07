@@ -230,7 +230,7 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 // climate
 // see https://www.home-assistant.io/integrations/climate.mqtt/
 #define HASSCLIMATEDISCOVERYTOPIC                  "homeassistant/climate/" UNIQUE_DEVICE_NAME "/config"
-#define HASSCLIMATEDISCOVERYPAYLOAD                "{\"name\":null,\"unique_id\":\"" UNIQUE_DEVICE_NAME "_temperaturehot" HASSOBJECT "" HASSICON "mdi:fan\",\"min_temp\":10,\"max_temp\":60,\"temp_step\":0.1,\"precision\":0.1,\"temperature_high_command_topic\":\"~/cmnd/TEMPMAX\",\"temperature_high_state_topic\":\"~/stat/TEMPMAX\",\"temperature_high_state_template\":\"{{ value | round(1) }}\",\"temperature_low_command_topic\":\"~/cmnd/TEMPMIN\",\"temperature_low_state_topic\":\"~/stat/TEMPMIN\",\"temperature_low_state_template\":\"{{ value | round(1) }}\",\"current_temperature_topic\":\"~/tele/STATE1\",\"value_template\":\"{{ value_json.TempHot }}\",\"modes\":[\"off\",\"fan_only\"],\"mode_command_topic\":\"~/cmnd/MODE\",\"mode_state_topic\":\"~/stat/MODE\",\"availability_topic\":\"~/stat/STATUS\"" HOMEASSISTANTDEVICE "}"
+#define HASSCLIMATEDISCOVERYPAYLOAD                "{\"name\":null,\"unique_id\":\"" UNIQUE_DEVICE_NAME "_temperaturehot" HASSOBJECT "" HASSICON "mdi:fan\",\"min_temp\":10,\"max_temp\":60,\"temp_step\":0.1,\"precision\":0.1,\"temperature_high_command_topic\":\"~/cmnd/TEMPMAX\",\"temperature_high_state_topic\":\"~/stat/TEMPMAX\",\"temperature_high_state_template\":\"{{ value | round(1) }}\",\"temperature_low_command_topic\":\"~/cmnd/TEMPMIN\",\"temperature_low_state_topic\":\"~/stat/TEMPMIN\",\"temperature_low_state_template\":\"{{ value | round(1) }}\",\"current_temperature_topic\":\"~/tele/STATE1\",\"value_template\":\"{{ value_json.TempHot }}\",\"modes\":[\"off\",\"fan_only\"],\"mode_command_topic\":\"~/cmnd/MODE\",\"mode_state_topic\":\"~/stat/MODE\",\"availability_topic\":\"~/stat/STATUS\"," HOMEASSISTANTDEVICE "}"
 
 // sensors
 // see https://www.home-assistant.io/integrations/sensor.mqtt/
@@ -264,8 +264,8 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 // see https://www.home-assistant.io/integrations/switch.mqtt/
 #define HASSSWITCHMANUALDISCOVERYTOPIC             "homeassistant/switch/" UNIQUE_DEVICE_NAME "/manual/config"
 #define HASSSWITCHMANUALDISCOVERYPAYLOAD           HASSNAME "Manual mode" HASSUNIQUEID "_manual" HASSOBJECT "_manual" HASSICON "mdi:toggle-switch" HASSSTAT "MANUAL" HASSCMND "MANUAL" "\"," HOMEASSISTANTDEVICE ",\"payload_on\":\"ON\",\"payload_off\":\"OFF\"}"
-#define HASSSWITCHOTADISCOVERYTOPIC         "homeassistant/switch/" UNIQUE_DEVICE_NAME "/ota_enable/config"
-#define HASSSWITCHOTADISCOVERYPAYLOAD       HASSNAME "Enable OTA" HASSUNIQUEID "_ota_enable" HASSOBJECT "_ota_enable" HASSICON "mdi:cellphone-arrow-down" HASSSTAT "OTA" HASSCMND "OTA" "\"," HOMEASSISTANTDEVICE ",\"payload_on\":\"ON\",\"payload_off\":\"OFF\"}"
+#define HASSSWITCHOTADISCOVERYTOPIC                "homeassistant/switch/" UNIQUE_DEVICE_NAME "/ota_enable/config"
+#define HASSSWITCHOTADISCOVERYPAYLOAD              HASSNAME "Enable OTA" HASSUNIQUEID "_ota_enable" HASSOBJECT "_ota_enable" HASSICON "mdi:cellphone-arrow-down" HASSSTAT "OTA" HASSCMND "OTA" "\"," HOMEASSISTANTDEVICE ",\"payload_on\":\"ON\",\"payload_off\":\"OFF\"}"
 
 // buttons
 // see https://www.home-assistant.io/integrations/button.mqtt/

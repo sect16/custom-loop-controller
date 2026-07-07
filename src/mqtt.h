@@ -13,6 +13,7 @@ bool mqtt_publish_stat_manual();
 bool mqtt_publish_stat_pwmManual();
 bool mqtt_publish_stat_pwmMinimum();
 bool mqtt_publish_stat_pwmStep();
+bool mqtt_publish_stat_ota();
 #ifdef useShutdownButton
 bool mqtt_publish_shutdown();
 #endif
