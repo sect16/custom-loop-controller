@@ -240,7 +240,7 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 // climate
 // see https://www.home-assistant.io/integrations/climate.mqtt/
 #define HASSCLIMATEDISCOVERYTOPIC                  "homeassistant/climate/" UNIQUE_DEVICE_NAME "/config"
-#define HASSCLIMATEDISCOVERYPAYLOAD                "{\"name\":null,\"unique_id\":\"" UNIQUE_DEVICE_NAME "_temperaturehot" HASSOBJECT "" HASSICON "mdi:fan\",\"min_temp\":10,\"max_temp\":60,\"temp_step\":0.1,\"precision\":0.1,\"temperature_high_command_topic\":\"~/cmnd/TEMPMAX\",\"temperature_high_state_topic\":\"~/stat/TEMPMAX\",\"temperature_high_state_template\":\"{{ value | round(1) }}\",\"temperature_low_command_topic\":\"~/cmnd/TEMPMIN\",\"temperature_low_state_topic\":\"~/stat/TEMPMIN\",\"temperature_low_state_template\":\"{{ value | round(1) }}\",\"current_temperature_topic\":\"~/tele/STATE1\",\"value_template\":\"{{ value_json.TempHot }}\",\"modes\":[\"off\",\"fan_only\"],\"mode_command_topic\":\"~/cmnd/MODE\",\"mode_state_topic\":\"~/stat/MODE\",\"availability_topic\":\"~/stat/STATUS\"," HOMEASSISTANTDEVICE "}"
+#define HASSCLIMATEDISCOVERYPAYLOAD                "{\"name\":null,\"unique_id\":\"" UNIQUE_DEVICE_NAME "_temperaturehot" HASSOBJECT "" HASSICON "mdi:fan\",\"min_temp\":10,\"max_temp\":60,\"temp_step\":0.1,\"precision\":0.1,\"temperature_high_command_topic\":\"~/cmnd/TEMPMAX\",\"temperature_high_state_topic\":\"~/stat/TEMPMAX\",\"temperature_high_state_template\":\"{{ value | round(1) }}\",\"temperature_low_command_topic\":\"~/cmnd/TEMPMIN\",\"temperature_low_state_topic\":\"~/stat/TEMPMIN\",\"temperature_low_state_template\":\"{{ value | round(1) }}\",\"current_temperature_topic\":\"~/tele/STATE1\",\"value_template\":\"{% if value_json is defined and value_json.TempHot is defined %}{{ value_json.TempHot }}{% else %}{{ states(this.entity_id) }}{% endif %}\",\"modes\":[\"off\",\"fan_only\"],\"mode_command_topic\":\"~/cmnd/MODE\",\"mode_state_topic\":\"~/stat/MODE\",\"availability_topic\":\"~/stat/STATUS\"," HOMEASSISTANTDEVICE "}"
 
 // sensors
 // see https://www.home-assistant.io/integrations/sensor.mqtt/
@@ -293,6 +293,10 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 #define HASSSENSORMACDISCOVERYPAYLOAD              HASSNAME "MAC Address" HASSUNIQUEID "_MAC" HASSOBJECT "_MAC" HASSICON "mdi:router-wireless-settings" HASSSTATE3 "value_json.MAC" HASSSYSCLASS HASSDIAG "," HOMEASSISTANTDEVICE "}"
 #define HASSSENSORRSSIDISCOVERYPAYLOAD             HASSNAME "WiFi RSSI" HASSUNIQUEID "_RSSI" HASSOBJECT "_RSSI" HASSICON "mdi:wifi" HASSSTATE3 "value_json.wifiRSSI" HASSSYSCLASS HASSRSSICLASS "," HOMEASSISTANTDEVICE "}"
 #define HASSSENSORHOSTNAMEDISCOVERYPAYLOAD         HASSNAME "Hostname" HASSUNIQUEID "_HOSTNAME" HASSOBJECT "_HOSTNAME" HASSICON "mdi:desktop-classic" HASSSTATE3 "value_json.Hostname" HASSSYSCLASS HASSDIAG "," HOMEASSISTANTDEVICE "}"
+
+
+
+
 
 #endif
 
