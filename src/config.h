@@ -234,7 +234,6 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 
 #define HASSRSSICLASS                              ",\"entity_category\":\"diagnostic\",\"unit_of_measurement\":\"dBm\",\"device_class\":\"signal_strength\",\"state_class\":\"measurement\""
 
-
 // Dedicated system stat class (similar to HASSSENSORCLASS but without custom icon injection points)
 #define HASSSYSCLASS                               " }}\",\"expire_after\":\"60\""
 
