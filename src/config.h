@@ -223,10 +223,21 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 #define HASSOBJECT                                 "\",\"object_id\":\"" UNIQUE_DEVICE_NAME
 #define HASSSTATE1                                 "\",\"state_topic\":\"~/tele/STATE1\",\"value_template\":\"{{ "
 #define HASSSTATE2                                 "\",\"state_topic\":\"~/tele/STATE2\",\"value_template\":\"{{ "
+#define HASSSTATE3                                 "\",\"state_topic\":\"~/tele/STATE3\",\"value_template\":\"{{ "
 #define HASSUNIQUEID                               "\",\"unique_id\":\"" UNIQUE_DEVICE_NAME
 #define HASSSTAT                                   "\",\"state_topic\":\"~/stat/"
 #define HASSNAME                                   "{\"name\":\""
 #define HASSCMND                                   "\",\"command_topic\":\"~/cmnd/"
+
+// Add these to your base classes/attributes section
+#define HASSIPCLASS           ",\"entity_category\":\"diagnostic\""
+#define HASSMACCLASS          ",\"entity_category\":\"diagnostic\""
+#define HASSRSSICLASS         ",\"entity_category\":\"diagnostic\",\"unit_of_measurement\":\"dBm\",\"device_class\":\"signal_strength\",\"state_class\":\"measurement\""
+#define HASSHOSTNAMECLASS     ",\"entity_category\":\"diagnostic\""
+
+// Dedicated system stat class (similar to HASSSENSORCLASS but without custom icon injection points)
+#define HASSSYSCLASS          " }}\",\"expire_after\":\"60\""
+
 // climate
 // see https://www.home-assistant.io/integrations/climate.mqtt/
 #define HASSCLIMATEDISCOVERYTOPIC                  "homeassistant/climate/" UNIQUE_DEVICE_NAME "/config"
@@ -254,11 +265,11 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 #define HASSNUMBEROFFSETDISCOVERYTOPIC             "homeassistant/number/" UNIQUE_DEVICE_NAME "/tempoffset/config"
 #define HASSNUMBERPWMMANUALDISCOVERYTOPIC          "homeassistant/number/" UNIQUE_DEVICE_NAME "/pwmmanual/config"
 #define HASSNUMBERPWMMINIMUMDISCOVERYTOPIC         "homeassistant/number/" UNIQUE_DEVICE_NAME "/pwmminimum/config"
-#define HASSNUMBERPWMSTEPDISCOVERYTOPIC         "homeassistant/number/" UNIQUE_DEVICE_NAME "/pwmstep/config"
+#define HASSNUMBERPWMSTEPDISCOVERYTOPIC            "homeassistant/number/" UNIQUE_DEVICE_NAME "/pwmstep/config"
 #define HASSNUMBEROFFSETDISCOVERYPAYLOAD           HASSNAME "Offset" HASSUNIQUEID "_tempoffset" HASSOBJECT "_tempoffset" HASSICON "mdi:thermometer-alert" HASSSTAT "TEMPOFFSET" HASSCMND "TEMPOFFSET" "\"," HOMEASSISTANTDEVICE ",\"step\":0.1,\"min\":-50,\"max\":50,\"precision\":0.1,\"mode\":\"box\"," HASSTEMPCLASS "}"
 #define HASSNUMBERPWMMANUALDISCOVERYPAYLOAD        HASSNAME "Manual PWM" HASSUNIQUEID "_pwmmanual" HASSOBJECT "_pwmmanual" HASSICON "mdi:square-wave" HASSSTAT "PWMMANUAL" HASSCMND "PWMMANUAL" "\"," HOMEASSISTANTDEVICE ",\"step\":1,\"min\":0,\"max\":255,\"mode\":\"slider\"}"
 #define HASSNUMBERPWMMINIMUMDISCOVERYPAYLOAD       HASSNAME "Minimum PWM" HASSUNIQUEID "_pwmminimum" HASSOBJECT "_pwmminimum" HASSICON "mdi:square-wave" HASSSTAT "PWMMINIMUM" HASSCMND "PWMMINIMUM" "\"," HOMEASSISTANTDEVICE ",\"step\":1,\"min\":0,\"max\":255,\"mode\":\"box\"}"
-#define HASSNUMBERPWMSTEPDISCOVERYPAYLOAD       HASSNAME "PWM Step" HASSUNIQUEID "_pwmstep" HASSOBJECT "_pwmstep" HASSICON "mdi:square-wave" HASSSTAT "PWMSTEP" HASSCMND "PWMSTEP" "\"," HOMEASSISTANTDEVICE ",\"step\":1,\"min\":1,\"max\":255,\"mode\":\"box\"}"
+#define HASSNUMBERPWMSTEPDISCOVERYPAYLOAD          HASSNAME "PWM Step" HASSUNIQUEID "_pwmstep" HASSOBJECT "_pwmstep" HASSICON "mdi:square-wave" HASSSTAT "PWMSTEP" HASSCMND "PWMSTEP" "\"," HOMEASSISTANTDEVICE ",\"step\":1,\"min\":1,\"max\":255,\"mode\":\"box\"}"
 
 // switch
 // see https://www.home-assistant.io/integrations/switch.mqtt/
@@ -269,8 +280,20 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 
 // buttons
 // see https://www.home-assistant.io/integrations/button.mqtt/
-#define HASSBUTTONRESTARTDISCOVERYTOPIC     "homeassistant/button/" UNIQUE_DEVICE_NAME "/restart/config"
-#define HASSBUTTONRESTARTDISCOVERYPAYLOAD   HASSNAME "Restart Device" HASSUNIQUEID "_restart" HASSOBJECT "_restart" HASSICON "mdi:restart" HASSCMND "RESTART" "\"," HOMEASSISTANTDEVICE ",\"payload_press\":\"RESTART\"}"
+#define HASSBUTTONRESTARTDISCOVERYTOPIC            "homeassistant/button/" UNIQUE_DEVICE_NAME "/restart/config"
+#define HASSBUTTONRESTARTDISCOVERYPAYLOAD          HASSNAME "Restart Device" HASSUNIQUEID "_restart" HASSOBJECT "_restart" HASSICON "mdi:restart" HASSCMND "RESTART" "\"," HOMEASSISTANTDEVICE ",\"payload_press\":\"RESTART\"}"
+
+// Diagnostic & System Discovery Topics
+#define HASSSENSORIPDISCOVERYTOPIC                 "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/ip/config"
+#define HASSSENSORMACDISCOVERYTOPIC                "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/mac/config"
+#define HASSSENSORRSSIDISCOVERYTOPIC               "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/rssi/config"
+#define HASSSENSORHOSTNAMEDISCOVERYTOPIC           "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/hostname/config"
+
+// Diagnostic & System Discovery Payloads
+#define HASSSENSORIPDISCOVERYPAYLOAD               HASSNAME "IP Address" HASSUNIQUEID "_IP" HASSOBJECT "_IP" HASSICON "mdi:ip-network" HASSSTATE3 "value_json.IP" HASSSYSCLASS HASSIPCLASS "," HOMEASSISTANTDEVICE "}"
+#define HASSSENSORMACDISCOVERYPAYLOAD              HASSNAME "MAC Address" HASSUNIQUEID "_MAC" HASSOBJECT "_MAC" HASSICON "mdi:router-wireless-settings" HASSSTATE3 "value_json.MAC" HASSSYSCLASS HASSMACCLASS "," HOMEASSISTANTDEVICE "}"
+#define HASSSENSORRSSIDISCOVERYPAYLOAD             HASSNAME "WiFi RSSI" HASSUNIQUEID "_RSSI" HASSOBJECT "_RSSI" HASSICON "mdi:wifi" HASSSTATE3 "value_json.wifiRSSI" HASSSYSCLASS HASSRSSICLASS "," HOMEASSISTANTDEVICE "}"
+#define HASSSENSORHOSTNAMEDISCOVERYPAYLOAD         HASSNAME "Hostname" HASSUNIQUEID "_HOSTNAME" HASSOBJECT "_HOSTNAME" HASSICON "mdi:desktop-classic" HASSSTATE3 "value_json.Hostname" HASSSYSCLASS HASSHOSTNAMECLASS "," HOMEASSISTANTDEVICE "}"
 
 #endif
 

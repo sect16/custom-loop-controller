@@ -163,6 +163,10 @@ bool mqtt_publish_hass_discovery() {
   error = error || !publishMQTTMessage(HASSNUMBERPWMSTEPDISCOVERYTOPIC, HASSNUMBERPWMSTEPDISCOVERYPAYLOAD);
   error = error || !publishMQTTMessage(HASSSWITCHOTADISCOVERYTOPIC, HASSSWITCHOTADISCOVERYPAYLOAD);
   error = error || !publishMQTTMessage(HASSBUTTONRESTARTDISCOVERYTOPIC, HASSBUTTONRESTARTDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORIPDISCOVERYTOPIC, HASSSENSORIPDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORMACDISCOVERYTOPIC, HASSSENSORMACDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORRSSIDISCOVERYTOPIC, HASSSENSORRSSIDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORHOSTNAMEDISCOVERYTOPIC, HASSSENSORHOSTNAMEDISCOVERYPAYLOAD);
   if (!error)
     delay(1000);
   // publish that we are online. Remark: offline is sent via last will retained message
@@ -244,19 +248,21 @@ bool mqtt_publish_tele3() {
   payload += WiFi.RSSI();
   payload += ",\"wifiChan\":";
   payload += WiFi.channel();
-  payload += ",\"wifiSSID\":";
+  payload += ",\"wifiSSID\":\"";
   payload += WiFi.SSID();
-  payload += ",\"wifiBSSID\":";
+  payload += "\",\"wifiBSSID\":\"";
   payload += WiFi.BSSIDstr();
 #if defined(WIFI_KNOWN_APS)
-  payload += ",\"wifiAP\":";
+  payload += "\",\"wifiAP\":\"";
   payload += accessPointName;
 #endif
-  payload += ",\"IP\":";
+  payload += "\",\"IP\":\"";
   payload += WiFi.localIP().toString();
-  payload += ",\"Hostname\":";
+  payload += "\",\"Hostname\":\"";
   payload += WiFi.getHostname();
-  payload += "}";
+  payload += "\",\"MAC\":\"";
+  payload += WiFi.macAddress();
+  payload += "\"}";
   error = !publishMQTTMessage(MQTTTELESTATE3, payload.c_str());
   return !error;
 }
