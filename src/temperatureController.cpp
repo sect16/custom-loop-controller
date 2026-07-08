@@ -21,6 +21,24 @@ int pwmMinimum;
 
 void initTemperatureController(void) {
     preferences.begin("hiveMon", false);
+	
+	if (!preferences.isKey("tempMax")) {
+        preferences.putFloat("tempMax", INITIALTEMPERATUREMAX);
+    }
+    if (!preferences.isKey("tempMin")) {
+        preferences.putFloat("tempMin", INITIALTEMPERATUREMIN);
+    }
+    if (!preferences.isKey("tempOffset")) {
+        preferences.putInt("tempOffset", INITIALTEMPERATUREOFFSET);
+    }
+	if (!preferences.isKey("pwmMin")) {
+        preferences.putInt("pwmMin", PWMMINIMUM);
+    }
+	if (!preferences.isKey("pwmStep")) {
+        preferences.putInt("pwmStep", PWMSTEP);
+    }
+	
+	
     temperatureMax = preferences.getFloat("tempMax", INITIALTEMPERATUREMAX);
     temperatureMin = preferences.getFloat("tempMin", INITIALTEMPERATUREMIN);
     temperatureOffset = preferences.getFloat("tempOffset", INITIALTEMPERATUREOFFSET);

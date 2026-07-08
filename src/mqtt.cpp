@@ -161,6 +161,12 @@ bool mqtt_publish_hass_discovery() {
   error = error || !publishMQTTMessage(HASSSENSORRPM4DISCOVERYTOPIC, HASSSENSORRPM4DISCOVERYPAYLOAD);
   error = error || !publishMQTTMessage(HASSSENSORPWMDISCOVERYTOPIC, HASSSENSORPWMDISCOVERYPAYLOAD);
   error = error || !publishMQTTMessage(HASSNUMBERPWMSTEPDISCOVERYTOPIC, HASSNUMBERPWMSTEPDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSWITCHOTADISCOVERYTOPIC, HASSSWITCHOTADISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSBUTTONRESTARTDISCOVERYTOPIC, HASSBUTTONRESTARTDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORIPDISCOVERYTOPIC, HASSSENSORIPDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORMACDISCOVERYTOPIC, HASSSENSORMACDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORRSSIDISCOVERYTOPIC, HASSSENSORRSSIDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORHOSTNAMEDISCOVERYTOPIC, HASSSENSORHOSTNAMEDISCOVERYPAYLOAD);
   if (!error)
     delay(1000);
   // publish that we are online. Remark: offline is sent via last will retained message
@@ -181,6 +187,7 @@ bool mqtt_publish_hass_discovery() {
   error = error || !mqtt_publish_stat_tempOffset();
   error = error || !mqtt_publish_stat_pwmMinimum();
   error = error || !mqtt_publish_stat_pwmStep();
+  error = error || !mqtt_publish_stat_ota();
   error = error || !mqtt_publish_tele1();
   error = error || !mqtt_publish_tele2();
   error = error || !mqtt_publish_tele3();
@@ -241,19 +248,21 @@ bool mqtt_publish_tele3() {
   payload += WiFi.RSSI();
   payload += ",\"wifiChan\":";
   payload += WiFi.channel();
-  payload += ",\"wifiSSID\":";
+  payload += ",\"wifiSSID\":\"";
   payload += WiFi.SSID();
-  payload += ",\"wifiBSSID\":";
+  payload += "\",\"wifiBSSID\":\"";
   payload += WiFi.BSSIDstr();
 #if defined(WIFI_KNOWN_APS)
-  payload += ",\"wifiAP\":";
+  payload += "\",\"wifiAP\":\"";
   payload += accessPointName;
 #endif
-  payload += ",\"IP\":";
+  payload += "\",\"IP\":\"";
   payload += WiFi.localIP().toString();
-  payload += ",\"Hostname\":";
+  payload += "\",\"Hostname\":\"";
   payload += WiFi.getHostname();
-  payload += "}";
+  payload += "\",\"MAC\":\"";
+  payload += WiFi.macAddress();
+  payload += "\"}";
   error = !publishMQTTMessage(MQTTTELESTATE3, payload.c_str());
   return !error;
 }
@@ -279,6 +288,11 @@ bool mqtt_publish_tele4() {
   error = !publishMQTTMessage(MQTTTELESTATE4, payload.c_str());
   return !error;
 }
+
+bool mqtt_publish_stat_ota()
+{
+  return publishMQTTMessage(MQTTSTATOTA, "OFF");
+};
 
 void callback(char *topic, byte *payload, unsigned int length) {
   // handle message arrived
@@ -329,18 +343,23 @@ void callback(char *topic, byte *payload, unsigned int length) {
     } else {
       Log.printf("Payload %s not supported\r\n", strPayload.c_str());
     }
-    #if defined(useOTAUpdate)
+  #if defined(useOTAUpdate)
   } else if (topicReceived == topicCmndOTA) {
-    if (strPayload == "ON") {
+    if (strPayload == "ON")
+    {
       Log.printf("MQTT command TURN ON OTA received\r\n");
       ArduinoOTA.begin();
-    } else if (strPayload == "OFF") {
+      publishMQTTMessage(MQTTSTATOTA, "ON");
+    }
+    else if (strPayload == "OFF")
+    {
       Log.printf("MQTT command TURN OFF OTA received\r\n");
       ArduinoOTA.end();
+      publishMQTTMessage(MQTTSTATOTA, "OFF");
     } else {
       Log.printf("Payload %s not supported\r\n", strPayload.c_str());
     }
-    #endif
+  #endif
   } else if (topicReceived == topicCmndManual) {
     if (strPayload == "ON") {
       Log.printf("MQTT command TURN ON MANUAL received\r\n");
