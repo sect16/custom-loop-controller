@@ -62,38 +62,49 @@ void mqtt_loop() {
 }
 
 bool checkMQTTconnection() {
-  if (wifiIsDisabled || !WiFi.isConnected() || !mqttClient.connected()) {
-    if (!wifiIsDisabled && WiFi.isConnected() && !mqttClient.connected()) {
-      #if !defined(useHomeassistantMQTTDiscovery)
-      if (mqttClient.connect(MQTT_CLIENTNAME, MQTT_USER, MQTT_PASS)) {
-      #else
-      if (mqttClient.connect(MQTT_CLIENTNAME, MQTT_USER, MQTT_PASS, HASSFANSTATUSTOPIC, 0, 1, HASSSTATUSOFFLINEPAYLOAD)) {
-      #endif
-        Log.printf("  Successfully connected to MQTT broker\r\n");
-        mqttClient.subscribe(MQTTCMNDTEMPMAX);
-        mqttClient.subscribe(MQTTCMNDTEMPMIN);
-        mqttClient.subscribe(MQTTCMNDTEMPOFFSET);
-        mqttClient.subscribe(MQTTCMNDMANUAL);
-        mqttClient.subscribe(MQTTCMNDPWMMANUAL);
-        mqttClient.subscribe(MQTTCMNDPWMMINIMUM);
-        mqttClient.subscribe(MQTTCMNDFANMODE);
-        mqttClient.subscribe(MQTTCMNDPWMSTEP);
-        #if defined(useOTAUpdate)
-        mqttClient.subscribe(MQTTCMNDOTA);
-        #endif
-        mqttClient.subscribe(MQTTCMNDRESTART);
-        #if defined(useHomeassistantMQTTDiscovery)
-        mqttClient.subscribe(HASSSTATUSTOPIC);
-        #endif
-      } else {
-        Log.printf("  MQTT connection failed (but WiFi is available). Will try later ...\r\n");
-      }
-    } else {
-      Log.printf("  No connection to MQTT server, because WiFi is not connected.\r\n");
-    }
+  if (wifiIsDisabled)
+  {
+    Log.printf("  No connection to MQTT server: WiFi is disabled.\r\n");
     return false;
   }
-  return true;
+  if (!WiFi.isConnected())
+  {
+    Log.printf("  No connection to MQTT server: WiFi is not connected.\r\n");
+    return false;
+  }
+  if (mqttClient.connected()) return true;
+  #if !defined(useHomeassistantMQTTDiscovery)
+  if (mqttClient.connect(MQTT_CLIENTNAME, MQTT_USER, MQTT_PASS))
+  {
+  #else
+  if (mqttClient.connect(MQTT_CLIENTNAME, MQTT_USER, MQTT_PASS, HASSFANSTATUSTOPIC, 0, 1, HASSSTATUSOFFLINEPAYLOAD)) {
+  #endif
+    Log.printf("  Successfully connected to MQTT broker\r\n");
+
+    // Subscriptions
+    mqttClient.subscribe(MQTTCMNDTEMPMAX);
+    mqttClient.subscribe(MQTTCMNDTEMPMIN);
+    mqttClient.subscribe(MQTTCMNDTEMPOFFSET);
+    mqttClient.subscribe(MQTTCMNDMANUAL);
+    mqttClient.subscribe(MQTTCMNDPWMMANUAL);
+    mqttClient.subscribe(MQTTCMNDPWMMINIMUM);
+    mqttClient.subscribe(MQTTCMNDFANMODE);
+    mqttClient.subscribe(MQTTCMNDPWMSTEP);
+    #if defined(useOTAUpdate)
+      mqttClient.subscribe(MQTTCMNDOTA);
+    #endif
+    mqttClient.subscribe(MQTTCMNDRESTART);
+    #if defined(useHomeassistantMQTTDiscovery)
+      mqttClient.subscribe(HASSSTATUSTOPIC);
+      timerStartForHAdiscovery = millis();
+    #endif
+    return true; // Return true now that we are successfully connected!
+  }
+  else
+  {
+    Log.printf("  MQTT connection failed (but WiFi is available). Will try later ...\r\n");
+    return false;
+  }
 }
 
 bool publishMQTTMessage(const char *topic, const char *payload, boolean retained) {
@@ -168,6 +179,10 @@ bool mqtt_publish_hass_discovery() {
   error = error || !publishMQTTMessage(HASSNUMBERPWMSTEPDISCOVERYTOPIC, HASSNUMBERPWMSTEPDISCOVERYPAYLOAD);
   error = error || !publishMQTTMessage(HASSSWITCHOTADISCOVERYTOPIC, HASSSWITCHOTADISCOVERYPAYLOAD);
   error = error || !publishMQTTMessage(HASSBUTTONRESTARTDISCOVERYTOPIC, HASSBUTTONRESTARTDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORIPDISCOVERYTOPIC, HASSSENSORIPDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORMACDISCOVERYTOPIC, HASSSENSORMACDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORRSSIDISCOVERYTOPIC, HASSSENSORRSSIDISCOVERYPAYLOAD);
+  error = error || !publishMQTTMessage(HASSSENSORHOSTNAMEDISCOVERYTOPIC, HASSSENSORHOSTNAMEDISCOVERYPAYLOAD);
   if (!error)
     delay(1000);
   // publish that we are online. Remark: offline is sent via last will retained message
@@ -249,19 +264,21 @@ bool mqtt_publish_tele3() {
   payload += WiFi.RSSI();
   payload += ",\"wifiChan\":";
   payload += WiFi.channel();
-  payload += ",\"wifiSSID\":";
+  payload += ",\"wifiSSID\":\"";
   payload += WiFi.SSID();
-  payload += ",\"wifiBSSID\":";
+  payload += "\",\"wifiBSSID\":\"";
   payload += WiFi.BSSIDstr();
 #if defined(WIFI_KNOWN_APS)
-  payload += ",\"wifiAP\":";
+  payload += "\",\"wifiAP\":\"";
   payload += accessPointName;
 #endif
-  payload += ",\"IP\":";
+  payload += "\",\"IP\":\"";
   payload += WiFi.localIP().toString();
-  payload += ",\"Hostname\":";
+  payload += "\",\"Hostname\":\"";
   payload += WiFi.getHostname();
-  payload += "}";
+  payload += "\",\"MAC\":\"";
+  payload += WiFi.macAddress();
+  payload += "\"}";
   error = !publishMQTTMessage(MQTTTELESTATE3, payload.c_str());
   return !error;
 }
@@ -287,6 +304,11 @@ bool mqtt_publish_tele4() {
   error = !publishMQTTMessage(MQTTTELESTATE4, payload.c_str());
   return !error;
 }
+
+bool mqtt_publish_stat_ota()
+{
+  return publishMQTTMessage(MQTTSTATOTA, "OFF");
+};
 
 void callback(char *topic, byte *payload, unsigned int length) {
   // handle message arrived
@@ -337,7 +359,7 @@ void callback(char *topic, byte *payload, unsigned int length) {
     } else {
       Log.printf("Payload %s not supported\r\n", strPayload.c_str());
     }
-    #if defined(useOTAUpdate)
+  #if defined(useOTAUpdate)
   } else if (topicReceived == topicCmndOTA) {
     if (strPayload == "ON")
     {
@@ -350,12 +372,10 @@ void callback(char *topic, byte *payload, unsigned int length) {
       Log.printf("MQTT command TURN OFF OTA received\r\n");
       ArduinoOTA.end();
       publishMQTTMessage(MQTTSTATOTA, "OFF");
-    }
-    else
-    {
+    } else {
       Log.printf("Payload %s not supported\r\n", strPayload.c_str());
     }
-    #endif
+  #endif
   } else if (topicReceived == topicCmndManual) {
     if (strPayload == "ON") {
       Log.printf("MQTT command TURN ON MANUAL received\r\n");
