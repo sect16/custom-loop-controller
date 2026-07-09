@@ -77,7 +77,7 @@ void initTFT(void) {
   draw_screen();
 
   // show the displays resolution
-  Log.printf("  TFT sucessfully initialized.\r\n");
+  Log.printf("  TFT successfully initialized.\r\n");
   Log.printf("  tftx = %d, tfty = %d\r\n", tft.width(), tft.height());
 
   #else

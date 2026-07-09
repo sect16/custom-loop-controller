@@ -144,6 +144,7 @@ void wifi_enable(void) {
   static WiFiEventHandler e2;
   e2 = WiFi.onStationModeDisconnected(onSTADisconnected);
   #endif
+  WiFi.setHostname(HOSTNAME);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
 void wifi_disable(void){
