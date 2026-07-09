@@ -75,7 +75,6 @@ void WiFiGotIP(WiFiEvent_t event, WiFiEventInfo_t info){
   #if defined(WIFI_KNOWN_APS)
   setAccessPointName();
   #endif
-
   printWiFiStatus();
 }
 #endif
@@ -144,6 +143,8 @@ void wifi_enable(void) {
   static WiFiEventHandler e2;
   e2 = WiFi.onStationModeDisconnected(onSTADisconnected);
   #endif
+  WiFi.mode(WIFI_STA);
+  WiFi.setHostname(HOSTNAME);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }
 void wifi_disable(void){
@@ -187,8 +188,6 @@ void wifi_setup(){
   e2 = WiFi.onStationModeDisconnected(onSTADisconnected);
   e3 = WiFi.onStationModeGotIP(onSTAGotIP);// As soon WiFi is connected, start NTP Client
   #endif
-  WiFi.mode(WIFI_STA);
-  WiFi.setHostname(HOSTNAME);
   wifi_disable();
 }
 #endif

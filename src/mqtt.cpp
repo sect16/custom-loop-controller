@@ -7,7 +7,7 @@
   #include <ESP8266WiFi.h>
 #endif
 #include <PubSubClient.h>
-#include <WiFiClient.h>
+#include "WiFiClientSecure.h"
 
 #include "config.h"
 #include "fanPWM.h"
@@ -33,17 +33,22 @@ unsigned long timerStartForHAdiscovery = 1;
 
 void callback(char *topic, byte *payload, unsigned int length);
 
-WiFiClient wifiClient;
+WiFiClientSecure wifiClient;
 
 PubSubClient mqttClient(MQTT_SERVER, MQTT_SERVER_PORT, callback, wifiClient);
 
 bool checkMQTTconnection();
 
-void mqtt_setup() {
+void mqtt_setup()
+{
 #ifdef useHomeassistantMQTTDiscovery
   // Set buffer size to allow hass discovery payload
   mqttClient.setBufferSize(1280);
 #endif
+  wifiClient.setInsecure(); // Skip certificate verification (development only)
+
+  // For production, load CA certificate:
+  // espClient.setCACert(root_ca);
 }
 
 void mqtt_loop() {
@@ -304,11 +309,6 @@ bool mqtt_publish_tele4() {
   error = !publishMQTTMessage(MQTTTELESTATE4, payload.c_str());
   return !error;
 }
-
-bool mqtt_publish_stat_ota()
-{
-  return publishMQTTMessage(MQTTSTATOTA, "OFF");
-};
 
 void callback(char *topic, byte *payload, unsigned int length) {
   // handle message arrived
