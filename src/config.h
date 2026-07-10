@@ -282,21 +282,15 @@ mosquitto_sub -h localhost -t "homeassistant/sensor/esp32_fan_controller/#" -v
 #define HASSBUTTONRESTARTDISCOVERYTOPIC            "homeassistant/button/" UNIQUE_DEVICE_NAME "/restart/config"
 #define HASSBUTTONRESTARTDISCOVERYPAYLOAD          HASSNAME "Restart Device" HASSUNIQUEID "_restart" HASSOBJECT "_restart" HASSICON "mdi:restart" HASSCMND "RESTART" "\"" HASSDIAG "," HOMEASSISTANTDEVICE ",\"payload_press\":\"RESTART\"}"
 
-// Diagnostic & System Discovery Topics
+// diagnostic
 #define HASSSENSORIPDISCOVERYTOPIC                 "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/ip/config"
 #define HASSSENSORMACDISCOVERYTOPIC                "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/mac/config"
 #define HASSSENSORRSSIDISCOVERYTOPIC               "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/rssi/config"
 #define HASSSENSORHOSTNAMEDISCOVERYTOPIC           "homeassistant/sensor/" UNIQUE_DEVICE_NAME "/hostname/config"
-
-// Diagnostic & System Discovery Payloads
 #define HASSSENSORIPDISCOVERYPAYLOAD               HASSNAME "IP Address" HASSUNIQUEID "_IP" HASSOBJECT "_IP" HASSICON "mdi:ip-network" HASSSTATE3 "value_json.IP" HASSSYSCLASS HASSDIAG "," HOMEASSISTANTDEVICE "}"
 #define HASSSENSORMACDISCOVERYPAYLOAD              HASSNAME "MAC Address" HASSUNIQUEID "_MAC" HASSOBJECT "_MAC" HASSICON "mdi:router-wireless-settings" HASSSTATE3 "value_json.MAC" HASSSYSCLASS HASSDIAG "," HOMEASSISTANTDEVICE "}"
 #define HASSSENSORRSSIDISCOVERYPAYLOAD             HASSNAME "WiFi RSSI" HASSUNIQUEID "_RSSI" HASSOBJECT "_RSSI" HASSICON "mdi:wifi" HASSSTATE3 "value_json.wifiRSSI" HASSSYSCLASS HASSRSSICLASS "," HOMEASSISTANTDEVICE "}"
 #define HASSSENSORHOSTNAMEDISCOVERYPAYLOAD         HASSNAME "Hostname" HASSUNIQUEID "_HOSTNAME" HASSOBJECT "_HOSTNAME" HASSICON "mdi:desktop-classic" HASSSTATE3 "value_json.Hostname" HASSSYSCLASS HASSDIAG "," HOMEASSISTANTDEVICE "}"
-
-
-
-
 
 #endif
 
